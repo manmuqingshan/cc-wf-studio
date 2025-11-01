@@ -284,15 +284,23 @@ function generateWorkflowExecutionLogic(workflow: Workflow): string {
       queue.push(...nextNodes);
     } else if (nodeType === 'askUserQuestion') {
       const askNode = currentNode as AskUserQuestionNode;
-      const branchingLogic = generateBranchingLogic(askNode, executableNodes, connections);
+      const branchingLogic = generateBranchingLogic(askNode, executableNodes, connections, visited);
       instructions.push(branchingLogic);
       instructions.push('');
 
-      // Add branching nodes to queue (skip End nodes)
+      // Find next nodes after branches (skip End nodes and already visited nodes)
       const outgoingConnections = connections.filter((conn) => conn.from === currentNode.id);
-      const nextNodes = outgoingConnections
-        .map((conn) => executableNodes.find((n) => n.id === conn.to))
-        .filter((n) => n !== undefined);
+      const branchTargets = new Set(outgoingConnections.map((conn) => conn.to));
+
+      // For each branch target, find nodes after it
+      const nextNodes: WorkflowNode[] = [];
+      for (const targetId of branchTargets) {
+        const afterBranchConnections = connections.filter((conn) => conn.from === targetId);
+        const afterBranchNodes = afterBranchConnections
+          .map((conn) => executableNodes.find((n) => n.id === conn.to))
+          .filter((n) => n !== undefined && !visited.has(n.id)) as WorkflowNode[];
+        nextNodes.push(...afterBranchNodes);
+      }
 
       queue.push(...nextNodes);
     } else if (nodeType === 'prompt') {
@@ -323,12 +331,14 @@ function generateWorkflowExecutionLogic(workflow: Workflow): string {
  * @param node - AskUserQuestion node
  * @param allNodes - All workflow nodes
  * @param connections - All connections
+ * @param visited - Set of visited node IDs
  * @returns Markdown text with branching instructions
  */
 function generateBranchingLogic(
   node: AskUserQuestionNode,
   allNodes: WorkflowNode[],
-  connections: Connection[]
+  connections: Connection[],
+  visited: Set<string>
 ): string {
   const { data } = node;
   const instructions: string[] = [];
@@ -340,13 +350,28 @@ function generateBranchingLogic(
   // Find outgoing connections for each option
   const outgoingConnections = connections.filter((conn) => conn.from === node.id);
 
-  for (const option of data.options) {
-    const connection = outgoingConnections.find((conn) => conn.condition === option.label);
+  for (let i = 0; i < data.options.length; i++) {
+    const option = data.options[i];
+    // Find connection using fromPort (e.g., "branch-0", "branch-1")
+    const connection = outgoingConnections.find((conn) => conn.fromPort === `branch-${i}`);
+
     if (connection) {
       const targetNode = allNodes.find((n) => n.id === connection.to);
-      if (targetNode && targetNode.type === 'subAgent') {
-        const agentName = nodeNameToFileName(targetNode.name);
-        instructions.push(`  - "${option.label}" → Taskツールで「${agentName}」Sub-Agentを実行`);
+      if (targetNode) {
+        if (targetNode.type === 'subAgent') {
+          const agentName = nodeNameToFileName(targetNode.name);
+          instructions.push(`  - "${option.label}" → Taskツールで「${agentName}」Sub-Agentを実行`);
+        } else if (targetNode.type === 'prompt') {
+          const promptNode = targetNode as PromptNode;
+          const promptText = promptNode.data.prompt || '';
+          instructions.push(`  - "${option.label}" → ${promptText}`);
+          // Mark prompt node as visited to prevent duplicate processing
+          visited.add(targetNode.id);
+        } else {
+          instructions.push(`  - "${option.label}" → ${targetNode.type}ノードへ接続`);
+        }
+      } else {
+        instructions.push(`  - "${option.label}" → (未接続)`);
       }
     } else {
       instructions.push(`  - "${option.label}" → (未接続)`);
@@ -354,7 +379,7 @@ function generateBranchingLogic(
   }
 
   instructions.push('');
-  instructions.push('ユーザーの選択に応じて、対応するSub-Agentを実行してください。');
+  instructions.push('ユーザーの選択に応じて、対応するアクションを実行してください。');
 
   return instructions.join('\n');
 }

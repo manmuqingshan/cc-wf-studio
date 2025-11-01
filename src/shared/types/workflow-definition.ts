@@ -44,6 +44,7 @@ export interface SubAgentData {
 }
 
 export interface QuestionOption {
+  id?: string; // Unique identifier for the option (optional for backward compatibility)
   label: string;
   description: string;
 }

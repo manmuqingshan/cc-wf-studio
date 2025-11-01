@@ -83,7 +83,7 @@ export const AskUserQuestionNodeComponent: React.FC<NodeProps<AskUserQuestionDat
         {/* Input Handle */}
         <Handle
           type="target"
-          position={Position.Top}
+          position={Position.Left}
           id="input"
           style={{
             width: '12px',
@@ -94,23 +94,21 @@ export const AskUserQuestionNodeComponent: React.FC<NodeProps<AskUserQuestionDat
         />
 
         {/* Dynamic Output Handles (2-4 branches) */}
-        <div style={{ position: 'relative' }}>
-          {data.options.map((option, i) => (
-            <Handle
-              key={`branch-${option.label}`}
-              type="source"
-              position={Position.Bottom}
-              id={`branch-${i}`}
-              style={{
-                width: '12px',
-                height: '12px',
-                backgroundColor: 'var(--vscode-button-background)',
-                border: '2px solid var(--vscode-button-foreground)',
-                left: `${20 + i * 60}px`,
-              }}
-            />
-          ))}
-        </div>
+        {data.options.map((option, i) => (
+          <Handle
+            key={`branch-${option.label}`}
+            type="source"
+            position={Position.Right}
+            id={`branch-${i}`}
+            style={{
+              width: '12px',
+              height: '12px',
+              backgroundColor: 'var(--vscode-button-background)',
+              border: '2px solid var(--vscode-button-foreground)',
+              top: `${((i + 1) / (data.options.length + 1)) * 100}%`,
+            }}
+          />
+        ))}
       </div>
     );
   }

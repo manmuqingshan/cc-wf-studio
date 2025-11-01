@@ -363,16 +363,38 @@ const SubAgentProperties: React.FC<{
 /**
  * AskUserQuestion Properties Editor
  */
+/**
+ * Generate a unique ID for an option
+ */
+const generateOptionId = (): string => {
+  return `opt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+};
+
 const AskUserQuestionProperties: React.FC<{
   node: Node<AskUserQuestionData>;
   updateNodeData: (nodeId: string, data: Partial<unknown>) => void;
 }> = ({ node, updateNodeData }) => {
   const data = node.data;
 
+  // Ensure all options have IDs (for backward compatibility)
+  const normalizedOptions = data.options.map((opt) => ({
+    ...opt,
+    id: opt.id || generateOptionId(),
+  }));
+
+  // Update data if any option was missing an ID
+  if (normalizedOptions.some((opt, i) => opt.id !== data.options[i].id)) {
+    updateNodeData(node.id, { options: normalizedOptions });
+  }
+
   const handleAddOption = () => {
     const newOptions = [
-      ...data.options,
-      { label: `Option ${data.options.length + 1}`, description: 'New option' },
+      ...normalizedOptions,
+      {
+        id: generateOptionId(),
+        label: `Option ${normalizedOptions.length + 1}`,
+        description: 'New option',
+      },
     ];
     updateNodeData(node.id, {
       options: newOptions,
@@ -381,8 +403,8 @@ const AskUserQuestionProperties: React.FC<{
   };
 
   const handleRemoveOption = (index: number) => {
-    if (data.options.length <= 2) return; // Minimum 2 options
-    const newOptions = data.options.filter((_, i) => i !== index);
+    if (normalizedOptions.length <= 2) return; // Minimum 2 options
+    const newOptions = normalizedOptions.filter((_, i) => i !== index);
     updateNodeData(node.id, {
       options: newOptions,
       outputPorts: newOptions.length,
@@ -390,7 +412,7 @@ const AskUserQuestionProperties: React.FC<{
   };
 
   const handleUpdateOption = (index: number, field: 'label' | 'description', value: string) => {
-    const newOptions = data.options.map((opt, i) =>
+    const newOptions = normalizedOptions.map((opt, i) =>
       i === index ? { ...opt, [field]: value } : opt
     );
     updateNodeData(node.id, { options: newOptions });
@@ -442,12 +464,12 @@ const AskUserQuestionProperties: React.FC<{
             marginBottom: '6px',
           }}
         >
-          Options ({data.options.length}/4)
+          Options ({normalizedOptions.length}/4)
         </div>
 
-        {data.options.map((option, index) => (
+        {normalizedOptions.map((option, index) => (
           <div
-            key={`${option.label}-${option.description}-${index}`}
+            key={option.id}
             style={{
               marginBottom: '12px',
               padding: '12px',
@@ -458,7 +480,7 @@ const AskUserQuestionProperties: React.FC<{
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ fontSize: '11px', fontWeight: 600 }}>Option {index + 1}</span>
-              {data.options.length > 2 && (
+              {normalizedOptions.length > 2 && (
                 <button
                   type="button"
                   onClick={() => handleRemoveOption(index)}
@@ -513,7 +535,7 @@ const AskUserQuestionProperties: React.FC<{
           </div>
         ))}
 
-        {data.options.length < 4 && (
+        {normalizedOptions.length < 4 && (
           <button
             type="button"
             onClick={handleAddOption}

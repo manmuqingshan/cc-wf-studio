@@ -72,7 +72,7 @@ export const SubAgentNodeComponent: React.FC<NodeProps<SubAgentData>> = React.me
         {/* Input Handle */}
         <Handle
           type="target"
-          position={Position.Top}
+          position={Position.Left}
           id="input"
           style={{
             width: '12px',
@@ -85,7 +85,7 @@ export const SubAgentNodeComponent: React.FC<NodeProps<SubAgentData>> = React.me
         {/* Output Handle */}
         <Handle
           type="source"
-          position={Position.Bottom}
+          position={Position.Right}
           id="output"
           style={{
             width: '12px',
