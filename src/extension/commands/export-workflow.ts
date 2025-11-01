@@ -4,7 +4,7 @@
  * Exports workflow to .claude format (agents/*.md and commands/*.md)
  */
 
-import * as path from 'path';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { Webview } from 'vscode';
 import type { ExportSuccessPayload, ExportWorkflowPayload } from '../../shared/types/messages';

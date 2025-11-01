@@ -5,7 +5,7 @@
  * Based on: /specs/001-cc-wf-studio/plan.md
  */
 
-import { resolve } from 'path';
+import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 

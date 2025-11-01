@@ -5,7 +5,7 @@
  * Based on: /specs/001-cc-wf-studio/contracts/vscode-extension-api.md section 2
  */
 
-import * as path from 'path';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 /**

@@ -15,12 +15,11 @@ import { Handle, type NodeProps, Position, useUpdateNodeInternals } from 'reactf
 export const AskUserQuestionNodeComponent: React.FC<NodeProps<AskUserQuestionData>> = React.memo(
   ({ id, data, selected }) => {
     const updateNodeInternals = useUpdateNodeInternals();
-    const portCount = data.outputPorts || 2;
 
     // Update React Flow's internal calculations when port count changes
     useEffect(() => {
       updateNodeInternals(id);
-    }, [portCount, id, updateNodeInternals]);
+    }, [id, updateNodeInternals]);
 
     return (
       <div
@@ -63,9 +62,9 @@ export const AskUserQuestionNodeComponent: React.FC<NodeProps<AskUserQuestionDat
         {/* Options List */}
         {data.options && data.options.length > 0 && (
           <div style={{ marginBottom: '8px' }}>
-            {data.options.map((option, index) => (
+            {data.options.map((option) => (
               <div
-                key={index}
+                key={option.label}
                 style={{
                   fontSize: '11px',
                   color: 'var(--vscode-descriptionForeground)',
@@ -96,9 +95,9 @@ export const AskUserQuestionNodeComponent: React.FC<NodeProps<AskUserQuestionDat
 
         {/* Dynamic Output Handles (2-4 branches) */}
         <div style={{ position: 'relative' }}>
-          {Array.from({ length: portCount }).map((_, i) => (
+          {data.options.map((option, i) => (
             <Handle
-              key={`branch-${i}`}
+              key={`branch-${option.label}`}
               type="source"
               position={Position.Bottom}
               id={`branch-${i}`}

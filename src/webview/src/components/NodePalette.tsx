@@ -74,6 +74,7 @@ export const NodePalette: React.FC = () => {
 
       {/* Sub-Agent Node Button */}
       <button
+        type="button"
         onClick={handleAddSubAgent}
         style={{
           width: '100%',
@@ -111,6 +112,7 @@ export const NodePalette: React.FC = () => {
 
       {/* AskUserQuestion Node Button */}
       <button
+        type="button"
         onClick={handleAddAskUserQuestion}
         style={{
           width: '100%',

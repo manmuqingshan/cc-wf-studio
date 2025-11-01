@@ -5,7 +5,7 @@
  * Based on: /specs/001-cc-wf-studio/spec.md Export Format Details
  */
 
-import * as path from 'path';
+import * as path from 'node:path';
 import type {
   AskUserQuestionNode,
   Connection,
@@ -243,8 +243,8 @@ function generateWorkflowExecutionLogic(workflow: Workflow): string {
   const queue = [...startNodes];
 
   while (queue.length > 0) {
-    const currentNode = queue.shift()!;
-    if (visited.has(currentNode.id)) {
+    const currentNode = queue.shift();
+    if (!currentNode || visited.has(currentNode.id)) {
       continue;
     }
     visited.add(currentNode.id);

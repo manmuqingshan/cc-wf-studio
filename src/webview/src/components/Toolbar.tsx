@@ -98,7 +98,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onError }) => {
 
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [setNodes, setEdges, setIsExporting]);
+  }, [setNodes, setEdges]);
 
   // Load workflow list on mount
   useEffect(() => {
@@ -206,6 +206,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onError }) => {
 
       {/* Save Button */}
       <button
+        type="button"
         onClick={handleSave}
         disabled={isSaving}
         style={{
@@ -225,6 +226,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onError }) => {
 
       {/* Export Button */}
       <button
+        type="button"
         onClick={handleExport}
         disabled={isExporting}
         style={{
@@ -276,6 +278,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onError }) => {
 
       {/* Load Button */}
       <button
+        type="button"
         onClick={handleLoadWorkflow}
         disabled={!selectedWorkflowId}
         style={{
@@ -295,6 +298,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onError }) => {
 
       {/* Refresh List Button */}
       <button
+        type="button"
         onClick={handleRefreshList}
         disabled={isLoading}
         title="Refresh workflow list"

@@ -90,6 +90,7 @@ export const PropertyPanel: React.FC = () => {
       {/* Node Name (common for all types) */}
       <div style={{ marginBottom: '16px' }}>
         <label
+          htmlFor="node-name-input"
           style={{
             display: 'block',
             fontSize: '12px',
@@ -101,6 +102,7 @@ export const PropertyPanel: React.FC = () => {
           Node Name
         </label>
         <input
+          id="node-name-input"
           type="text"
           value={selectedNode.data.name || selectedNode.id}
           onChange={(e) => {
@@ -164,6 +166,7 @@ const SubAgentProperties: React.FC<{
       {/* Description */}
       <div>
         <label
+          htmlFor="description-input"
           style={{
             display: 'block',
             fontSize: '12px',
@@ -175,6 +178,7 @@ const SubAgentProperties: React.FC<{
           Description
         </label>
         <input
+          id="description-input"
           type="text"
           value={data.description}
           onChange={(e) => updateNodeData(node.id, { description: e.target.value })}
@@ -194,6 +198,7 @@ const SubAgentProperties: React.FC<{
       {/* Prompt */}
       <div>
         <label
+          htmlFor="prompt-textarea"
           style={{
             display: 'block',
             fontSize: '12px',
@@ -205,6 +210,7 @@ const SubAgentProperties: React.FC<{
           Prompt
         </label>
         <textarea
+          id="prompt-textarea"
           value={data.prompt}
           onChange={(e) => updateNodeData(node.id, { prompt: e.target.value })}
           className="nodrag"
@@ -226,6 +232,7 @@ const SubAgentProperties: React.FC<{
       {/* Model */}
       <div>
         <label
+          htmlFor="model-select"
           style={{
             display: 'block',
             fontSize: '12px',
@@ -237,6 +244,7 @@ const SubAgentProperties: React.FC<{
           Model
         </label>
         <select
+          id="model-select"
           value={data.model || 'sonnet'}
           onChange={(e) =>
             updateNodeData(node.id, { model: e.target.value as 'sonnet' | 'opus' | 'haiku' })
@@ -261,6 +269,7 @@ const SubAgentProperties: React.FC<{
       {/* Tools */}
       <div>
         <label
+          htmlFor="tools-input"
           style={{
             display: 'block',
             fontSize: '12px',
@@ -272,6 +281,7 @@ const SubAgentProperties: React.FC<{
           Tools (comma-separated)
         </label>
         <input
+          id="tools-input"
           type="text"
           value={data.tools || ''}
           onChange={(e) => updateNodeData(node.id, { tools: e.target.value })}
@@ -342,6 +352,7 @@ const AskUserQuestionProperties: React.FC<{
       {/* Question Text */}
       <div>
         <label
+          htmlFor="question-text-input"
           style={{
             display: 'block',
             fontSize: '12px',
@@ -353,6 +364,7 @@ const AskUserQuestionProperties: React.FC<{
           Question
         </label>
         <textarea
+          id="question-text-input"
           value={data.questionText}
           onChange={(e) => updateNodeData(node.id, { questionText: e.target.value })}
           className="nodrag"
@@ -372,7 +384,7 @@ const AskUserQuestionProperties: React.FC<{
 
       {/* Options */}
       <div>
-        <label
+        <div
           style={{
             display: 'block',
             fontSize: '12px',
@@ -382,11 +394,11 @@ const AskUserQuestionProperties: React.FC<{
           }}
         >
           Options ({data.options.length}/4)
-        </label>
+        </div>
 
         {data.options.map((option, index) => (
           <div
-            key={index}
+            key={`${option.label}-${option.description}-${index}`}
             style={{
               marginBottom: '12px',
               padding: '12px',
@@ -399,6 +411,7 @@ const AskUserQuestionProperties: React.FC<{
               <span style={{ fontSize: '11px', fontWeight: 600 }}>Option {index + 1}</span>
               {data.options.length > 2 && (
                 <button
+                  type="button"
                   onClick={() => handleRemoveOption(index)}
                   className="nodrag"
                   style={{
@@ -453,6 +466,7 @@ const AskUserQuestionProperties: React.FC<{
 
         {data.options.length < 4 && (
           <button
+            type="button"
             onClick={handleAddOption}
             className="nodrag"
             style={{

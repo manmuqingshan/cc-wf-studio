@@ -39,9 +39,9 @@ export const ErrorNotification: React.FC<ErrorNotificationProps> = ({ error, onD
 
   // Type narrowing: at this point, error is definitely ErrorPayload
   const errorData: ErrorPayload = error;
-  const code: any = errorData.code;
-  const message: any = errorData.message;
-  const details: any = errorData.details;
+  const code = errorData.code;
+  const message = errorData.message;
+  const details = errorData.details;
 
   return (
     <div
@@ -71,6 +71,7 @@ export const ErrorNotification: React.FC<ErrorNotificationProps> = ({ error, onD
       >
         <div style={{ fontWeight: 600, fontSize: '13px' }}>❌ Error: {code}</div>
         <button
+          type="button"
           onClick={handleDismiss}
           style={{
             background: 'none',
@@ -85,7 +86,6 @@ export const ErrorNotification: React.FC<ErrorNotificationProps> = ({ error, onD
         </button>
       </div>
 
-      {/* Message */}
       <div style={{ fontSize: '12px', lineHeight: '1.5' }}>{message}</div>
 
       {/* Details (if available) */}

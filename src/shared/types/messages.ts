@@ -40,7 +40,8 @@ export interface ExportSuccessPayload {
 export interface ErrorPayload {
   code: string;
   message: string;
-  details?: unknown;
+  // biome-ignore lint/suspicious/noExplicitAny: Error details can be of any type
+  details?: any;
 }
 
 export interface WorkflowListPayload {

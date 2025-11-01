@@ -51,9 +51,9 @@ export const WorkflowEditor: React.FC = () => {
     useWorkflowStore();
 
   // Memoize callbacks for performance (research.md section 3.1)
-  const handleNodesChange = useCallback(onNodesChange, [onNodesChange]);
-  const handleEdgesChange = useCallback(onEdgesChange, [onEdgesChange]);
-  const handleConnect = useCallback(onConnect, [onConnect]);
+  const handleNodesChange = useCallback(onNodesChange, []);
+  const handleEdgesChange = useCallback(onEdgesChange, []);
+  const handleConnect = useCallback(onConnect, []);
 
   // Handle node selection
   const handleNodeClick = useCallback(

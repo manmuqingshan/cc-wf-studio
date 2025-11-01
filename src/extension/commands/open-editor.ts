@@ -63,18 +63,19 @@ export function registerOpenEditorCommand(
     // Handle messages from webview
     currentPanel.webview.onDidReceiveMessage(
       async (message: WebviewMessage) => {
+        // Ensure panel still exists
+        if (!currentPanel) {
+          return;
+        }
+        const webview = currentPanel.webview;
+
         switch (message.type) {
           case 'SAVE_WORKFLOW':
             // Save workflow
             if (message.payload?.workflow) {
-              await saveWorkflow(
-                fileService,
-                currentPanel!.webview,
-                message.payload.workflow,
-                message.requestId
-              );
+              await saveWorkflow(fileService, webview, message.payload.workflow, message.requestId);
             } else {
-              currentPanel!.webview.postMessage({
+              webview.postMessage({
                 type: 'ERROR',
                 requestId: message.requestId,
                 payload: {
@@ -88,14 +89,9 @@ export function registerOpenEditorCommand(
           case 'EXPORT_WORKFLOW':
             // Export workflow to .claude format
             if (message.payload) {
-              await handleExportWorkflow(
-                fileService,
-                currentPanel!.webview,
-                message.payload,
-                message.requestId
-              );
+              await handleExportWorkflow(fileService, webview, message.payload, message.requestId);
             } else {
-              currentPanel!.webview.postMessage({
+              webview.postMessage({
                 type: 'ERROR',
                 requestId: message.requestId,
                 payload: {
@@ -108,7 +104,7 @@ export function registerOpenEditorCommand(
 
           case 'LOAD_WORKFLOW_LIST':
             // Load workflow list
-            await loadWorkflowList(fileService, currentPanel!.webview, message.requestId);
+            await loadWorkflowList(fileService, webview, message.requestId);
             break;
 
           case 'LOAD_WORKFLOW':
@@ -116,12 +112,12 @@ export function registerOpenEditorCommand(
             if (message.payload?.workflowId) {
               await loadWorkflow(
                 fileService,
-                currentPanel!.webview,
+                webview,
                 message.payload.workflowId,
                 message.requestId
               );
             } else {
-              currentPanel!.webview.postMessage({
+              webview.postMessage({
                 type: 'ERROR',
                 requestId: message.requestId,
                 payload: {
