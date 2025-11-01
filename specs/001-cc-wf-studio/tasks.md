@@ -97,7 +97,7 @@
 
 #### エラーハンドリング & バリデーション
 
-- [ ] T035 [US1] src/extension/services/workflow-service.tsにワークフローバリデーションを追加 (data-model.md section 5の名前フォーマット、最大50ノード、接続の妥当性) - **ロジックはsrc/webview/src/services/workflow-service.tsに実装済み、UIからの呼び出しは未実装**
+- [X] T035 [US1] src/extension/services/workflow-service.tsにワークフローバリデーションを追加 (data-model.md section 5の名前フォーマット、最大50ノード、接続の妥当性) - **完了: ロジック実装済み、UIからの呼び出しも実装済み**
 - [X] T036 [US1] src/webview/src/components/ErrorNotification.tsxにエラーメッセージ表示を実装 (extension-webview-api.md section 1.4のextensionからのERRORメッセージ表示、コード固有のスタイリング)
 
 **チェックポイント**: この時点でユーザーストーリー1は完全に機能し、独立してテスト可能 - ユーザーはノードを持つワークフローを作成し、接続し、.vscode/workflows/*.jsonに保存できる
@@ -114,19 +114,19 @@
 
 #### エクスポートコマンド & サービス
 
-- [ ] T037 [P] [US2] src/extension/commands/export-workflow.tsにexportWorkflowコマンドを登録 (EXPORT_WORKFLOWメッセージ処理、ファイル存在チェック、エクスポートサービス呼び出し)
-- [ ] T038 [US2] src/extension/services/export-service.tsにエクスポートサービスを作成 (spec.md Technical SpecificationsのexportWorkflow関数、Workflowを.claude形式に変換)
+- [X] T037 [P] [US2] src/extension/commands/export-workflow.tsにexportWorkflowコマンドを登録 (EXPORT_WORKFLOWメッセージ処理、ファイル存在チェック、エクスポートサービス呼び出し)
+- [X] T038 [US2] src/extension/services/export-service.tsにエクスポートサービスを作成 (spec.md Technical SpecificationsのexportWorkflow関数、Workflowを.claude形式に変換)
 
 #### Sub-Agent設定ファイル生成
 
-- [ ] T039 [P] [US2] src/extension/services/export-service.tsにSubAgentNodeからSub-Agent設定ファイルへのコンバーターを実装 (spec.md section Export Format DetailsのgenerateSubAgentFile関数: name, description, tools, model, promptボディ)
-- [ ] T040 [P] [US2] src/extension/services/export-service.tsにノード名からファイル名へのコンバーターを実装 (spec.mdのtoLowerCase、スペースをハイフンに、例: "Data Analysis" → "data-analysis.md")
+- [X] T039 [P] [US2] src/extension/services/export-service.tsにSubAgentNodeからSub-Agent設定ファイルへのコンバーターを実装 (spec.md section Export Format DetailsのgenerateSubAgentFile関数: name, description, tools, model, promptボディ)
+- [X] T040 [P] [US2] src/extension/services/export-service.tsにノード名からファイル名へのコンバーターを実装 (spec.mdのtoLowerCase、スペースをハイフンに、例: "Data Analysis" → "data-analysis.md")
 
 #### SlashCommand生成
 
-- [ ] T041 [US2] src/extension/services/export-service.tsにSlashCommandファイルジェネレーターを実装 (spec.mdのgenerateSlashCommandFile関数: YAML frontmatter, allowed-tools: Task,AskUserQuestion)
-- [ ] T042 [US2] src/extension/services/export-service.tsにワークフロー実行ロジックジェネレーターを実装 (spec.md section DD-003のTaskツール呼び出しとAskUserQuestion分岐の技術的指示を生成)
-- [ ] T043 [US2] src/extension/services/export-service.tsにAskUserQuestion分岐ロジックを実装 (data-model.md section 1.4のオプションラベルを下流ノードにマッピング、条件付き実行指示を生成)
+- [X] T041 [US2] src/extension/services/export-service.tsにSlashCommandファイルジェネレーターを実装 (spec.mdのgenerateSlashCommandFile関数: YAML frontmatter, allowed-tools: Task,AskUserQuestion)
+- [X] T042 [US2] src/extension/services/export-service.tsにワークフロー実行ロジックジェネレーターを実装 (spec.md section DD-003のTaskツール呼び出しとAskUserQuestion分岐の技術的指示を生成)
+- [X] T043 [US2] src/extension/services/export-service.tsにAskUserQuestion分岐ロジックを実装 (data-model.md section 1.4のオプションラベルを下流ノードにマッピング、条件付き実行指示を生成)
 
 #### ファイル競合ハンドリング
 

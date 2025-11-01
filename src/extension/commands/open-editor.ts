@@ -10,6 +10,8 @@ import { getWebviewContent } from '../webview-content';
 import { FileService } from '../services/file-service';
 import { loadWorkflowList } from './load-workflow-list';
 import { loadWorkflow } from './load-workflow';
+import { saveWorkflow } from './save-workflow';
+import { handleExportWorkflow } from './export-workflow';
 import type { WebviewMessage } from '../../shared/types/messages';
 
 /**
@@ -65,17 +67,45 @@ export function registerOpenEditorCommand(context: vscode.ExtensionContext): vsc
         async (message: WebviewMessage) => {
           switch (message.type) {
             case 'SAVE_WORKFLOW':
-              // Execute save workflow command
-              await vscode.commands.executeCommand(
-                'cc-wf-studio.saveWorkflow',
-                message.payload,
-                currentPanel?.webview
-              );
+              // Save workflow
+              if (message.payload?.workflow) {
+                await saveWorkflow(
+                  fileService,
+                  currentPanel!.webview,
+                  message.payload.workflow,
+                  message.requestId
+                );
+              } else {
+                currentPanel!.webview.postMessage({
+                  type: 'ERROR',
+                  requestId: message.requestId,
+                  payload: {
+                    code: 'VALIDATION_ERROR',
+                    message: 'Workflow is required',
+                  },
+                });
+              }
               break;
 
             case 'EXPORT_WORKFLOW':
-              // TODO: Will be implemented in Phase 4
-              console.log('EXPORT_WORKFLOW:', message.payload);
+              // Export workflow to .claude format
+              if (message.payload) {
+                await handleExportWorkflow(
+                  fileService,
+                  currentPanel!.webview,
+                  message.payload,
+                  message.requestId
+                );
+              } else {
+                currentPanel!.webview.postMessage({
+                  type: 'ERROR',
+                  requestId: message.requestId,
+                  payload: {
+                    code: 'VALIDATION_ERROR',
+                    message: 'Export payload is required',
+                  },
+                });
+              }
               break;
 
             case 'LOAD_WORKFLOW_LIST':

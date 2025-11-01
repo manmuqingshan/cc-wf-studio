@@ -8,7 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { vscode } from '../main';
 import { useWorkflowStore } from '../stores/workflow-store';
 import { saveWorkflow, loadWorkflowList } from '../services/vscode-bridge';
-import { serializeWorkflow, deserializeWorkflow } from '../services/workflow-service';
+import { serializeWorkflow, deserializeWorkflow, validateWorkflow } from '../services/workflow-service';
 import type { Workflow } from '@shared/types/messages';
 
 interface ToolbarProps {
@@ -27,6 +27,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onError }) => {
   const [workflowName, setWorkflowName] = useState('my-workflow');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [workflows, setWorkflows] = useState<WorkflowListItem[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
 
@@ -41,13 +42,19 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onError }) => {
 
     setIsSaving(true);
     try {
+      // Serialize workflow
       const workflow = serializeWorkflow(nodes, edges, workflowName, 'Created with Workflow Studio');
+
+      // Validate workflow before saving
+      validateWorkflow(workflow);
+
+      // Save if validation passes
       await saveWorkflow(workflow);
       console.log('Workflow saved successfully:', workflowName);
     } catch (error) {
       onError({
-        code: 'SAVE_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to save workflow',
+        code: 'VALIDATION_ERROR',
+        message: error instanceof Error ? error.message : 'Workflow validation failed',
         details: error,
       });
     } finally {
@@ -70,6 +77,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onError }) => {
           setNodes(loadedNodes);
           setEdges(loadedEdges);
           setWorkflowName(workflow.name);
+        }
+      } else if (message.type === 'EXPORT_SUCCESS') {
+        console.log('Export successful:', message.payload);
+        setIsExporting(false);
+        // TODO: Show success notification
+      } else if (message.type === 'ERROR') {
+        console.error('Error received:', message.payload);
+        if (isExporting) {
+          setIsExporting(false);
         }
       }
     };
@@ -114,6 +130,38 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onError }) => {
       type: 'LOAD_WORKFLOW',
       payload: { workflowId: selectedWorkflowId },
     });
+  };
+
+  const handleExport = async () => {
+    if (!workflowName.trim()) {
+      onError({
+        code: 'VALIDATION_ERROR',
+        message: 'Workflow name is required for export',
+      });
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      // Serialize workflow
+      const workflow = serializeWorkflow(nodes, edges, workflowName, 'Created with Workflow Studio');
+
+      // Validate workflow before export
+      validateWorkflow(workflow);
+
+      // Request export
+      vscode.postMessage({
+        type: 'EXPORT_WORKFLOW',
+        payload: { workflow },
+      });
+    } catch (error) {
+      onError({
+        code: 'VALIDATION_ERROR',
+        message: error instanceof Error ? error.message : 'Workflow validation failed',
+        details: error,
+      });
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -162,6 +210,25 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onError }) => {
         }}
       >
         {isSaving ? 'Saving...' : 'Save'}
+      </button>
+
+      {/* Export Button */}
+      <button
+        onClick={handleExport}
+        disabled={isExporting}
+        style={{
+          padding: '4px 12px',
+          backgroundColor: 'var(--vscode-button-secondaryBackground)',
+          color: 'var(--vscode-button-secondaryForeground)',
+          border: 'none',
+          borderRadius: '2px',
+          cursor: isExporting ? 'not-allowed' : 'pointer',
+          fontSize: '13px',
+          opacity: isExporting ? 0.6 : 1,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {isExporting ? 'Exporting...' : 'Export'}
       </button>
 
       {/* Divider */}

@@ -14,7 +14,7 @@ import type { SubAgentData, AskUserQuestionData } from '@shared/types/workflow-d
  * PropertyPanel Component
  */
 export const PropertyPanel: React.FC = () => {
-  const { nodes, selectedNodeId, updateNodeData } = useWorkflowStore();
+  const { nodes, selectedNodeId, updateNodeData, setNodes } = useWorkflowStore();
 
   // Find the selected node
   const selectedNode = nodes.find((node) => node.id === selectedNodeId);
@@ -85,6 +85,55 @@ export const PropertyPanel: React.FC = () => {
         }}
       >
         {selectedNode.type === 'subAgent' ? 'Sub-Agent' : 'Ask User Question'}
+      </div>
+
+      {/* Node Name (common for all types) */}
+      <div style={{ marginBottom: '16px' }}>
+        <label
+          style={{
+            display: 'block',
+            fontSize: '12px',
+            fontWeight: 600,
+            color: 'var(--vscode-foreground)',
+            marginBottom: '6px',
+          }}
+        >
+          Node Name
+        </label>
+        <input
+          type="text"
+          value={selectedNode.data.name || selectedNode.id}
+          onChange={(e) => {
+            const newName = e.target.value;
+            setNodes(
+              nodes.map((n) =>
+                n.id === selectedNode.id
+                  ? { ...n, data: { ...n.data, name: newName } }
+                  : n
+              )
+            );
+          }}
+          className="nodrag"
+          placeholder="Enter node name"
+          style={{
+            width: '100%',
+            padding: '6px 8px',
+            backgroundColor: 'var(--vscode-input-background)',
+            color: 'var(--vscode-input-foreground)',
+            border: '1px solid var(--vscode-input-border)',
+            borderRadius: '2px',
+            fontSize: '13px',
+          }}
+        />
+        <div
+          style={{
+            fontSize: '11px',
+            color: 'var(--vscode-descriptionForeground)',
+            marginTop: '4px',
+          }}
+        >
+          Used for exported file name (e.g., "data-analysis")
+        </div>
       </div>
 
       {/* Render properties based on node type */}

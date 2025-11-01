@@ -5,81 +5,77 @@
  * Based on: /specs/001-cc-wf-studio/contracts/extension-webview-api.md
  */
 
+import type { Webview } from 'vscode';
 import * as vscode from 'vscode';
 import { FileService } from '../services/file-service';
 import type { Workflow } from '../../shared/types/workflow-definition';
-import type { SaveWorkflowPayload } from '../../shared/types/messages';
+import type { SaveSuccessPayload } from '../../shared/types/messages';
 
 /**
- * Register the save workflow command
+ * Save workflow to file
  *
- * @param context - VSCode extension context
  * @param fileService - File service instance
+ * @param webview - Webview to send response to
+ * @param workflow - Workflow to save
+ * @param requestId - Request ID for response matching
  */
-export function registerSaveWorkflowCommand(
-  context: vscode.ExtensionContext,
-  fileService: FileService
-): void {
-  // This command will be called internally by the message handler
-  // Not exposed as a user-facing command
-  const saveWorkflowCommand = vscode.commands.registerCommand(
-    'cc-wf-studio.saveWorkflow',
-    async (payload: SaveWorkflowPayload, webview?: vscode.Webview) => {
-      try {
-        const { workflow } = payload;
+export async function saveWorkflow(
+  fileService: FileService,
+  webview: Webview,
+  workflow: Workflow,
+  requestId?: string
+): Promise<void> {
+  try {
+    // Ensure workflows directory exists
+    await fileService.ensureWorkflowsDirectory();
 
-        // Ensure workflows directory exists
-        await fileService.ensureWorkflowsDirectory();
+    // Validate workflow (basic checks)
+    validateWorkflow(workflow);
 
-        // Validate workflow (basic checks)
-        validateWorkflow(workflow);
+    // Get file path
+    const filePath = fileService.getWorkflowFilePath(workflow.name);
 
-        // Get file path
-        const filePath = fileService.getWorkflowFilePath(workflow.name);
+    // Serialize workflow to JSON with 2-space indentation
+    const content = JSON.stringify(workflow, null, 2);
 
-        // Serialize workflow to JSON with 2-space indentation
-        const content = JSON.stringify(workflow, null, 2);
+    // Write to file
+    await fileService.writeFile(filePath, content);
 
-        // Write to file
-        await fileService.writeFile(filePath, content);
+    // Send success message back to webview
+    const payload: SaveSuccessPayload = {
+      filePath,
+      timestamp: new Date().toISOString(),
+    };
 
-        // Send success message back to webview
-        if (webview) {
-          webview.postMessage({
-            type: 'SAVE_SUCCESS',
-            payload: {
-              filePath,
-              timestamp: new Date().toISOString(),
-            },
-          });
-        }
+    webview.postMessage({
+      type: 'SAVE_SUCCESS',
+      requestId,
+      payload,
+    });
 
-        // Show success notification
-        vscode.window.showInformationMessage(
-          `Workflow "${workflow.name}" saved successfully!`
-        );
-      } catch (error) {
-        // Send error message back to webview
-        if (webview) {
-          webview.postMessage({
-            type: 'ERROR',
-            payload: {
-              code: 'SAVE_FAILED',
-              message: error instanceof Error ? error.message : 'Failed to save workflow',
-              details: error,
-            },
-          });
-        }
+    // Show success notification
+    vscode.window.showInformationMessage(
+      `Workflow "${workflow.name}" saved successfully!`
+    );
 
-        // Show error notification
-        vscode.window.showErrorMessage(
-          `Failed to save workflow: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
-      }
-    }
-  );
+    console.log(`Workflow saved: ${workflow.name}`);
+  } catch (error) {
+    // Send error message back to webview
+    webview.postMessage({
+      type: 'ERROR',
+      requestId,
+      payload: {
+        code: 'SAVE_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to save workflow',
+        details: error,
+      },
+    });
 
-  context.subscriptions.push(saveWorkflowCommand);
+    // Show error notification
+    vscode.window.showErrorMessage(
+      `Failed to save workflow: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
 }
 
 /**
