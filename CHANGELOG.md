@@ -1,3 +1,10 @@
+## [3.3.0](https://github.com/breaking-brake/cc-wf-studio/compare/v3.2.4...v3.3.0) (2025-12-06)
+
+### Features
+
+* add close button to PropertyPanel with tour highlight fix ([#226](https://github.com/breaking-brake/cc-wf-studio/issues/226)) ([0004663](https://github.com/breaking-brake/cc-wf-studio/commit/0004663bf9990d63696b7af6da02b6ad84e0a954))
+* add workflow reset button to toolbar ([#225](https://github.com/breaking-brake/cc-wf-studio/issues/225)) ([2b8fb54](https://github.com/breaking-brake/cc-wf-studio/commit/2b8fb5410c8ef8af997249b82b2a7dfffa0d118f))
+
 ## [3.2.4](https://github.com/breaking-brake/cc-wf-studio/compare/v3.2.3...v3.2.4) (2025-12-06)
 
 ### Bug Fixes
