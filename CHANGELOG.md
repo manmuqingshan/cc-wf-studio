@@ -1,3 +1,9 @@
+## [3.5.1](https://github.com/breaking-brake/cc-wf-studio/compare/v3.5.0...v3.5.1) (2025-12-09)
+
+### Improvements
+
+* replace workflow dropdown with OS file picker ([#244](https://github.com/breaking-brake/cc-wf-studio/issues/244)) ([276377c](https://github.com/breaking-brake/cc-wf-studio/commit/276377c00d2b7271fefac94691524f5ef0351006))
+
 ## [3.5.0](https://github.com/breaking-brake/cc-wf-studio/compare/v3.4.1...v3.5.0) (2025-12-09)
 
 ### Features
