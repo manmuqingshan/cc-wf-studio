@@ -199,6 +199,14 @@ export interface SkillValidationSuccessPayload {
 
 import type { ConversationHistory, ConversationMessage } from './workflow-definition';
 
+/**
+ * Claude model selection for AI refinement
+ * - sonnet: Claude Sonnet (default, balanced performance)
+ * - opus: Claude Opus (highest capability)
+ * - haiku: Claude Haiku (fastest, most economical)
+ */
+export type ClaudeModel = 'sonnet' | 'opus' | 'haiku';
+
 export interface RefineWorkflowPayload {
   /** ID of the workflow being refined */
   workflowId: string;
@@ -216,6 +224,8 @@ export interface RefineWorkflowPayload {
   targetType?: 'workflow' | 'subAgentFlow';
   /** SubAgentFlow ID (required when targetType is 'subAgentFlow') */
   subAgentFlowId?: string;
+  /** Claude model to use (default: 'sonnet') */
+  model?: ClaudeModel;
 }
 
 export interface RefinementSuccessPayload {
@@ -282,6 +292,17 @@ export interface RefinementClarificationPayload {
   /** Time taken to execute refinement before clarification */
   executionTimeMs: number;
   /** Response timestamp */
+  timestamp: string; // ISO 8601
+}
+
+export interface RefinementProgressPayload {
+  /** New text chunk from streaming output */
+  chunk: string;
+  /** Display text (may include tool usage info) - for streaming display */
+  accumulatedText: string;
+  /** Explanatory text only (no tool info) - for preserving in chat history */
+  explanatoryText?: string;
+  /** Progress timestamp */
   timestamp: string; // ISO 8601
 }
 
@@ -592,6 +613,7 @@ export type ExtensionMessage =
   | Message<RefinementFailedPayload, 'REFINEMENT_FAILED'>
   | Message<RefinementCancelledPayload, 'REFINEMENT_CANCELLED'>
   | Message<RefinementClarificationPayload, 'REFINEMENT_CLARIFICATION'>
+  | Message<RefinementProgressPayload, 'REFINEMENT_PROGRESS'>
   | Message<ConversationClearedPayload, 'CONVERSATION_CLEARED'>
   | Message<SubAgentFlowRefinementSuccessPayload, 'SUBAGENTFLOW_REFINEMENT_SUCCESS'>
   | Message<McpServersResultPayload, 'MCP_SERVERS_RESULT'>

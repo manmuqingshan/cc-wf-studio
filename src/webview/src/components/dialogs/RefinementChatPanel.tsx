@@ -12,7 +12,7 @@
  * Updated: Issue #265 - Added codebase index status badge
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ResponsiveFontProvider } from '../../contexts/ResponsiveFontContext';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { useResponsiveFontSizes } from '../../hooks/useResponsiveFontSizes';
@@ -24,6 +24,7 @@ import {
 } from '../../services/codebase-search-service';
 import {
   clearConversation,
+  type RefinementProgressCallback,
   refineSubAgentFlow,
   refineWorkflow,
   WorkflowRefinementError,
@@ -69,6 +70,7 @@ export function RefinementChatPanel({
     startProcessing,
     handleRefinementSuccess,
     handleRefinementFailed,
+    finishProcessing,
     addLoadingAiMessage,
     updateMessageLoadingState,
     updateMessageContent,
@@ -82,6 +84,7 @@ export function RefinementChatPanel({
     setMessageSearchResults,
     isIndexReady,
     useCodebaseSearch,
+    selectedModel,
   } = useRefinementStore();
 
   const { activeWorkflow, updateWorkflow, subAgentFlows, updateSubAgentFlow, setNodes, setEdges } =
@@ -107,16 +110,33 @@ export function RefinementChatPanel({
     }
   }, [mode, onClose, closeChat]);
 
+  // Track the last loaded workflow/subAgentFlow ID to avoid reloading during refinement
+  const lastLoadedWorkflowIdRef = useRef<string | null>(null);
+  const lastLoadedSubAgentFlowIdRef = useRef<string | null>(null);
+
   // Load conversation history and set target context when panel opens
+  // IMPORTANT: Don't reload conversation history when activeWorkflow changes during refinement
+  // because this would overwrite the frontend's streaming messages with the server's history
   useEffect(() => {
     if (!isVisible) return;
 
     if (mode === 'subAgentFlow' && subAgentFlow && subAgentFlowId) {
-      setTargetContext('subAgentFlow', subAgentFlowId);
-      loadConversationHistory(subAgentFlow.conversationHistory);
+      // Only reload if switching to a different SubAgentFlow
+      if (lastLoadedSubAgentFlowIdRef.current !== subAgentFlowId) {
+        setTargetContext('subAgentFlow', subAgentFlowId);
+        loadConversationHistory(subAgentFlow.conversationHistory);
+        lastLoadedSubAgentFlowIdRef.current = subAgentFlowId;
+        lastLoadedWorkflowIdRef.current = null;
+      }
     } else if (mode === 'workflow' && activeWorkflow) {
-      setTargetContext('workflow');
-      loadConversationHistory(activeWorkflow.conversationHistory);
+      // Only reload if switching to a different workflow
+      // This prevents reloading during refinement (same workflow ID, updated reference)
+      if (lastLoadedWorkflowIdRef.current !== activeWorkflow.id) {
+        setTargetContext('workflow');
+        loadConversationHistory(activeWorkflow.conversationHistory);
+        lastLoadedWorkflowIdRef.current = activeWorkflow.id;
+        lastLoadedSubAgentFlowIdRef.current = null;
+      }
     }
 
     // Reset context when unmounting (only for subAgentFlow mode)
@@ -218,7 +238,8 @@ export function RefinementChatPanel({
           conversationHistory,
           requestId,
           useSkills,
-          timeoutSeconds * 1000
+          timeoutSeconds * 1000,
+          selectedModel
         );
 
         if (result.type === 'success') {
@@ -287,7 +308,27 @@ export function RefinementChatPanel({
           }
         }
       } else {
-        // Main workflow refinement
+        // Main workflow refinement with streaming progress
+        let hasReceivedProgress = false;
+        let latestExplanatoryText = '';
+
+        const onProgress: RefinementProgressCallback = (payload) => {
+          hasReceivedProgress = true;
+          // Update message content with display text (may include tool info)
+          updateMessageContent(aiMessageId, payload.accumulatedText);
+          // Track explanatory text separately (for preserving in chat history)
+          // Note: explanatoryText can be empty string if AI only uses tools
+          if (payload.explanatoryText !== undefined) {
+            latestExplanatoryText = payload.explanatoryText;
+          }
+          console.log('[RefinementChatPanel] onProgress:', {
+            hasReceivedProgress,
+            accumulatedTextLength: payload.accumulatedText.length,
+            explanatoryTextLength: payload.explanatoryText?.length ?? 0,
+            latestExplanatoryTextLength: latestExplanatoryText.length,
+          });
+        };
+
         const result = await refineWorkflow(
           activeWorkflow.id,
           messageToSend,
@@ -295,17 +336,47 @@ export function RefinementChatPanel({
           conversationHistory,
           requestId,
           useSkills,
-          timeoutSeconds * 1000
+          timeoutSeconds * 1000,
+          onProgress,
+          selectedModel
         );
 
         if (result.type === 'success') {
           updateWorkflow(result.payload.refinedWorkflow);
-          updateMessageContent(aiMessageId, result.payload.aiMessage.content);
-          updateMessageLoadingState(aiMessageId, false);
-          handleRefinementSuccess(
-            result.payload.aiMessage,
-            result.payload.updatedConversationHistory
-          );
+
+          console.log('[RefinementChatPanel] handleSend success:', {
+            hasReceivedProgress,
+            latestExplanatoryTextLength: latestExplanatoryText.length,
+            latestExplanatoryTextPreview: latestExplanatoryText.substring(0, 100),
+            willUseFinishProcessing: hasReceivedProgress && latestExplanatoryText.length > 0,
+          });
+
+          if (hasReceivedProgress && latestExplanatoryText) {
+            // Streaming occurred with explanatory text
+            // Replace display text with explanatory text only (remove tool info)
+            updateMessageContent(aiMessageId, latestExplanatoryText);
+            updateMessageLoadingState(aiMessageId, false);
+
+            // Add completion message as new bubble
+            const completionMessageId = `ai-completion-${Date.now()}-${Math.random()}`;
+            addLoadingAiMessage(completionMessageId);
+            updateMessageContent(completionMessageId, result.payload.aiMessage.content);
+            updateMessageLoadingState(completionMessageId, false);
+
+            // Preserve frontend messages (don't overwrite with server history)
+            console.log('[RefinementChatPanel] handleSend: Using finishProcessing');
+            finishProcessing();
+          } else {
+            // No streaming or no explanatory text: just show completion message
+            console.log('[RefinementChatPanel] handleSend: Using handleRefinementSuccess');
+            updateMessageContent(aiMessageId, result.payload.aiMessage.content);
+            updateMessageLoadingState(aiMessageId, false);
+
+            handleRefinementSuccess(
+              result.payload.aiMessage,
+              result.payload.updatedConversationHistory
+            );
+          }
 
           // Issue #265: Perform codebase search after AI response
           if (explicitSearchQuery) {
@@ -317,12 +388,19 @@ export function RefinementChatPanel({
             }
           }
         } else if (result.type === 'clarification') {
-          updateMessageContent(aiMessageId, result.payload.aiMessage.content);
-          updateMessageLoadingState(aiMessageId, false);
-          handleRefinementSuccess(
-            result.payload.aiMessage,
-            result.payload.updatedConversationHistory
-          );
+          if (hasReceivedProgress && latestExplanatoryText) {
+            // Replace display text with explanatory text only
+            updateMessageContent(aiMessageId, latestExplanatoryText);
+            updateMessageLoadingState(aiMessageId, false);
+            finishProcessing();
+          } else {
+            updateMessageContent(aiMessageId, result.payload.aiMessage.content);
+            updateMessageLoadingState(aiMessageId, false);
+            handleRefinementSuccess(
+              result.payload.aiMessage,
+              result.payload.updatedConversationHistory
+            );
+          }
 
           // Issue #265: Perform codebase search after AI response
           if (explicitSearchQuery) {
@@ -378,7 +456,8 @@ export function RefinementChatPanel({
           conversationHistory,
           requestId,
           useSkills,
-          timeoutSeconds * 1000
+          timeoutSeconds * 1000,
+          selectedModel
         );
 
         if (result.type === 'success') {
@@ -422,7 +501,27 @@ export function RefinementChatPanel({
           handleRefinementSuccess(aiMessage, updatedConversationHistory);
         }
       } else {
-        // Main workflow retry
+        // Main workflow retry with streaming progress
+        let hasReceivedProgress = false;
+        let latestExplanatoryText = '';
+
+        const onProgress: RefinementProgressCallback = (payload) => {
+          hasReceivedProgress = true;
+          // Update message content with display text (may include tool info)
+          updateMessageContent(aiMessageId, payload.accumulatedText);
+          // Track explanatory text separately (for preserving in chat history)
+          // Note: explanatoryText can be empty string if AI only uses tools
+          if (payload.explanatoryText !== undefined) {
+            latestExplanatoryText = payload.explanatoryText;
+          }
+          console.log('[RefinementChatPanel] onProgress:', {
+            hasReceivedProgress,
+            accumulatedTextLength: payload.accumulatedText.length,
+            explanatoryTextLength: payload.explanatoryText?.length ?? 0,
+            latestExplanatoryTextLength: latestExplanatoryText.length,
+          });
+        };
+
         const result = await refineWorkflow(
           activeWorkflow.id,
           userMessage.content,
@@ -430,24 +529,52 @@ export function RefinementChatPanel({
           conversationHistory,
           requestId,
           useSkills,
-          timeoutSeconds * 1000
+          timeoutSeconds * 1000,
+          onProgress,
+          selectedModel
         );
 
         if (result.type === 'success') {
           updateWorkflow(result.payload.refinedWorkflow);
-          updateMessageContent(aiMessageId, result.payload.aiMessage.content);
-          updateMessageLoadingState(aiMessageId, false);
-          handleRefinementSuccess(
-            result.payload.aiMessage,
-            result.payload.updatedConversationHistory
-          );
+
+          if (hasReceivedProgress && latestExplanatoryText) {
+            // Streaming occurred with explanatory text
+            // Replace display text with explanatory text only (remove tool info)
+            updateMessageContent(aiMessageId, latestExplanatoryText);
+            updateMessageLoadingState(aiMessageId, false);
+
+            // Add completion message as new bubble
+            const completionMessageId = `ai-completion-${Date.now()}-${Math.random()}`;
+            addLoadingAiMessage(completionMessageId);
+            updateMessageContent(completionMessageId, result.payload.aiMessage.content);
+            updateMessageLoadingState(completionMessageId, false);
+
+            // Preserve frontend messages (don't overwrite with server history)
+            finishProcessing();
+          } else {
+            // No streaming or no explanatory text: just show completion message
+            updateMessageContent(aiMessageId, result.payload.aiMessage.content);
+            updateMessageLoadingState(aiMessageId, false);
+
+            handleRefinementSuccess(
+              result.payload.aiMessage,
+              result.payload.updatedConversationHistory
+            );
+          }
         } else if (result.type === 'clarification') {
-          updateMessageContent(aiMessageId, result.payload.aiMessage.content);
-          updateMessageLoadingState(aiMessageId, false);
-          handleRefinementSuccess(
-            result.payload.aiMessage,
-            result.payload.updatedConversationHistory
-          );
+          if (hasReceivedProgress && latestExplanatoryText) {
+            // Replace display text with explanatory text only
+            updateMessageContent(aiMessageId, latestExplanatoryText);
+            updateMessageLoadingState(aiMessageId, false);
+            finishProcessing();
+          } else {
+            updateMessageContent(aiMessageId, result.payload.aiMessage.content);
+            updateMessageLoadingState(aiMessageId, false);
+            handleRefinementSuccess(
+              result.payload.aiMessage,
+              result.payload.updatedConversationHistory
+            );
+          }
         }
       }
     } catch (error) {

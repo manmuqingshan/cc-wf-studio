@@ -13,6 +13,7 @@ import type {
   RefinementCancelledPayload,
   RefinementClarificationPayload,
   RefinementFailedPayload,
+  RefinementProgressPayload,
   RefinementSuccessPayload,
   RefineWorkflowPayload,
   SubAgentFlowRefinementSuccessPayload,
@@ -47,6 +48,7 @@ export async function handleRefineWorkflow(
     timeoutMs,
     targetType = 'workflow',
     subAgentFlowId,
+    model = 'sonnet',
   } = payload;
   const startTime = Date.now();
 
@@ -63,6 +65,7 @@ export async function handleRefineWorkflow(
     timeoutMs: effectiveTimeoutMs,
     targetType,
     subAgentFlowId,
+    model,
   });
 
   // Route to SubAgentFlow refinement if targetType is 'subAgentFlow'
@@ -92,7 +95,24 @@ export async function handleRefineWorkflow(
       return;
     }
 
-    // Execute refinement
+    // Create streaming progress callback
+    const onProgress = (chunk: string, displayText: string, explanatoryText: string) => {
+      log('INFO', 'onProgress callback invoked', {
+        requestId,
+        chunkLength: chunk.length,
+        displayTextLength: displayText.length,
+        explanatoryTextLength: explanatoryText.length,
+      });
+
+      sendRefinementProgress(webview, requestId, {
+        chunk,
+        accumulatedText: displayText,
+        explanatoryText,
+        timestamp: new Date().toISOString(),
+      });
+    };
+
+    // Execute refinement with streaming
     const result = await refineWorkflow(
       currentWorkflow,
       conversationHistory,
@@ -101,7 +121,9 @@ export async function handleRefineWorkflow(
       useSkills,
       effectiveTimeoutMs,
       requestId,
-      workspaceRoot
+      workspaceRoot,
+      onProgress,
+      model
     );
 
     // Check if AI is asking for clarification
@@ -211,7 +233,6 @@ export async function handleRefineWorkflow(
       totalMessages: updatedHistory.messages.length,
     });
 
-    // Send success response
     sendRefinementSuccess(webview, requestId, {
       refinedWorkflow: result.refinedWorkflow,
       aiMessage,
@@ -264,6 +285,7 @@ async function handleRefineSubAgentFlow(
     useSkills = true,
     timeoutMs,
     subAgentFlowId,
+    model = 'sonnet',
   } = payload;
   const startTime = Date.now();
 
@@ -279,6 +301,7 @@ async function handleRefineSubAgentFlow(
     maxIterations: conversationHistory.maxIterations,
     useSkills,
     timeoutMs: effectiveTimeoutMs,
+    model,
   });
 
   // Validate subAgentFlowId
@@ -351,7 +374,8 @@ async function handleRefineSubAgentFlow(
       useSkills,
       effectiveTimeoutMs,
       requestId,
-      workspaceRoot
+      workspaceRoot,
+      model
     );
 
     // Check if AI is asking for clarification
@@ -538,6 +562,21 @@ export async function handleClearConversation(
       workflowId,
     });
   }
+}
+
+/**
+ * Send refinement progress message to Webview (streaming)
+ */
+function sendRefinementProgress(
+  webview: vscode.Webview,
+  requestId: string,
+  payload: RefinementProgressPayload
+): void {
+  webview.postMessage({
+    type: 'REFINEMENT_PROGRESS',
+    requestId,
+    payload,
+  });
 }
 
 /**
