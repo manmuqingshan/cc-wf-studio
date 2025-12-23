@@ -13,7 +13,7 @@ import type {
   Workflow,
 } from '@shared/types/messages';
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProcessingOverlay } from './components/common/ProcessingOverlay';
 import { SimpleOverlay } from './components/common/SimpleOverlay';
 import { ConfirmDialog } from './components/dialogs/ConfirmDialog';
@@ -25,16 +25,18 @@ import { SubAgentFlowDialog } from './components/dialogs/SubAgentFlowDialog';
 import { TermsOfUseDialog } from './components/dialogs/TermsOfUseDialog';
 import { ErrorNotification } from './components/ErrorNotification';
 import { NodePalette } from './components/NodePalette';
-import { PropertyPanel } from './components/PropertyPanel';
+import { PropertyOverlay } from './components/PropertyOverlay';
 import { Toolbar } from './components/Toolbar';
 import { Tour } from './components/Tour';
 import { WorkflowEditor } from './components/WorkflowEditor';
 import { useCollapsiblePanel } from './hooks/useCollapsiblePanel';
+import { useIsCompactMode } from './hooks/useWindowWidth';
 import { useTranslation } from './i18n/i18n-context';
 import { vscode } from './main';
 import { deserializeWorkflow } from './services/workflow-service';
 import { useRefinementStore } from './stores/refinement-store';
 import { useWorkflowStore } from './stores/workflow-store';
+import type { RefinementChatState } from './types/refinement-chat-state';
 
 const App: React.FC = () => {
   const { t } = useTranslation();
@@ -47,12 +49,45 @@ const App: React.FC = () => {
     setEdges,
     setWorkflowName,
     setActiveWorkflow,
-    isPropertyPanelOpen,
+    isPropertyOverlayOpen,
     selectedNodeId,
     activeSubAgentFlowId,
     setActiveSubAgentFlowId,
   } = useWorkflowStore();
-  const { isOpen: isRefinementPanelOpen, isProcessing } = useRefinementStore();
+  // Get all refinement store state and actions for main workflow chat
+  const refinementStore = useRefinementStore();
+  const { isOpen: isRefinementPanelOpen, isProcessing } = refinementStore;
+
+  // Build mainChatState from refinement store (for main workflow RefinementChatPanel)
+  const mainChatState: RefinementChatState = useMemo(
+    () => ({
+      conversationHistory: refinementStore.conversationHistory,
+      isProcessing: refinementStore.isProcessing,
+      currentInput: refinementStore.currentInput,
+      currentRequestId: refinementStore.currentRequestId,
+      setInput: refinementStore.setInput,
+      canSend: refinementStore.canSend,
+      addUserMessage: refinementStore.addUserMessage,
+      addLoadingAiMessage: refinementStore.addLoadingAiMessage,
+      updateMessageContent: refinementStore.updateMessageContent,
+      updateMessageLoadingState: refinementStore.updateMessageLoadingState,
+      updateMessageErrorState: refinementStore.updateMessageErrorState,
+      updateMessageToolInfo: refinementStore.updateMessageToolInfo,
+      removeMessage: refinementStore.removeMessage,
+      clearHistory: refinementStore.clearHistory,
+      startProcessing: refinementStore.startProcessing,
+      finishProcessing: refinementStore.finishProcessing,
+      handleRefinementSuccess: refinementStore.handleRefinementSuccess,
+      handleRefinementFailed: refinementStore.handleRefinementFailed,
+      shouldShowWarning: refinementStore.shouldShowWarning,
+    }),
+    [refinementStore]
+  );
+
+  const handleCloseRefinementPanel = useCallback(() => {
+    refinementStore.closeChat();
+  }, [refinementStore]);
+
   const [error, setError] = useState<ErrorPayload | null>(null);
   const [runTour, setRunTour] = useState(false);
   const [tourKey, setTourKey] = useState(0); // Used to force Tour component remount
@@ -73,6 +108,7 @@ const App: React.FC = () => {
     toggle: toggleNodePalette,
     expand: expandNodePalette,
   } = useCollapsiblePanel();
+  const isCompact = useIsCompactMode();
 
   const handleError = (errorData: ErrorPayload) => {
     setError(errorData);
@@ -224,7 +260,7 @@ const App: React.FC = () => {
             flexDirection: 'column',
           }}
         >
-          <Collapsible.Content className="node-palette-collapsible">
+          <Collapsible.Content className={`node-palette-collapsible${isCompact ? ' compact' : ''}`}>
             <NodePalette onCollapse={toggleNodePalette} />
           </Collapsible.Content>
           {/* Simple overlay for Left Panel */}
@@ -239,14 +275,31 @@ const App: React.FC = () => {
           />
           {/* Processing overlay for canvas area only (with message centered in canvas) */}
           <ProcessingOverlay isVisible={isProcessing} message={t('refinement.processingOverlay')} />
+
+          {/* Property Overlay - overlay on canvas right side */}
+          {selectedNodeId && isPropertyOverlayOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 5,
+                right: 5,
+                bottom: 5,
+                zIndex: 10,
+              }}
+            >
+              <PropertyOverlay />
+            </div>
+          )}
         </div>
 
-        {/* Right Panel: Property Panel (when node selected) > Refinement Chat Panel > none (canvas expands) */}
-        {selectedNodeId && isPropertyPanelOpen ? (
-          <PropertyPanel />
-        ) : isRefinementPanelOpen ? (
-          <RefinementChatPanel />
-        ) : null}
+        {/* Refinement Panel with Radix Collapsible for slide animation */}
+        <Collapsible.Root open={isRefinementPanelOpen}>
+          <Collapsible.Content
+            className={`refinement-panel-collapsible${isCompact ? ' compact' : ''}`}
+          >
+            <RefinementChatPanel chatState={mainChatState} onClose={handleCloseRefinementPanel} />
+          </Collapsible.Content>
+        </Collapsible.Root>
       </div>
 
       {/* Error Notification Overlay */}
@@ -356,11 +409,16 @@ const App: React.FC = () => {
 
           /* Node Palette Collapsible Animation */
           .node-palette-collapsible {
+            --palette-width: 200px;
             overflow: hidden;
           }
 
+          .node-palette-collapsible.compact {
+            --palette-width: 100px;
+          }
+
           .node-palette-collapsible[data-state='open'] {
-            width: 200px;
+            width: var(--palette-width);
             animation: slideOpen 150ms ease-out;
           }
 
@@ -374,13 +432,52 @@ const App: React.FC = () => {
               width: 0px;
             }
             to {
-              width: 200px;
+              width: var(--palette-width);
             }
           }
 
           @keyframes slideClose {
             from {
-              width: 200px;
+              width: var(--palette-width);
+            }
+            to {
+              width: 0px;
+            }
+          }
+
+          /* Refinement Panel Collapsible Animation */
+          .refinement-panel-collapsible {
+            --refinement-width: 320px;
+            overflow: hidden;
+            height: 100%;
+          }
+
+          .refinement-panel-collapsible.compact {
+            --refinement-width: 280px;
+          }
+
+          .refinement-panel-collapsible[data-state='open'] {
+            width: var(--refinement-width);
+            animation: slideOpenFromRight 150ms ease-out;
+          }
+
+          .refinement-panel-collapsible[data-state='closed'] {
+            width: 0px;
+            animation: slideCloseToRight 150ms ease-out;
+          }
+
+          @keyframes slideOpenFromRight {
+            from {
+              width: 0px;
+            }
+            to {
+              width: var(--refinement-width);
+            }
+          }
+
+          @keyframes slideCloseToRight {
+            from {
+              width: var(--refinement-width);
             }
             to {
               width: 0px;

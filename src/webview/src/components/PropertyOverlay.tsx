@@ -1,7 +1,7 @@
 /**
- * Claude Code Workflow Studio - Property Panel Component
+ * Claude Code Workflow Studio - Property Overlay Component
  *
- * Property editor for selected nodes
+ * Property editor for selected nodes (displayed as overlay on canvas)
  * Based on: /specs/001-cc-wf-studio/plan.md
  * Updated: Phase 3.3 - Added resizable width functionality
  */
@@ -30,13 +30,39 @@ import { ResizeHandle } from './common/ResizeHandle';
 import { McpNodeEditDialog } from './dialogs/McpNodeEditDialog';
 
 /**
- * PropertyPanel Component
+ * PropertyOverlay Props
  */
-export const PropertyPanel: React.FC = () => {
+interface PropertyOverlayProps {
+  /** Override selected node ID (for SubAgentFlowDialog local state) */
+  overrideSelectedNodeId?: string | null;
+  /** Override close handler (for SubAgentFlowDialog local state) */
+  onClose?: () => void;
+}
+
+/**
+ * PropertyOverlay Component
+ */
+export const PropertyOverlay: React.FC<PropertyOverlayProps> = ({
+  overrideSelectedNodeId,
+  onClose,
+}) => {
   const { t } = useTranslation();
-  const { nodes, selectedNodeId, updateNodeData, setNodes, closePropertyPanel, subAgentFlows } =
-    useWorkflowStore();
+  const {
+    nodes,
+    selectedNodeId: storeSelectedNodeId,
+    updateNodeData,
+    setNodes,
+    closePropertyOverlay,
+    subAgentFlows,
+  } = useWorkflowStore();
   const { width, handleMouseDown } = useResizablePanel();
+
+  // Use override if provided, otherwise use store value
+  const selectedNodeId =
+    overrideSelectedNodeId !== undefined ? overrideSelectedNodeId : storeSelectedNodeId;
+
+  // Use override close handler if provided
+  const handleClose = onClose || closePropertyOverlay;
 
   // Find the selected node
   const selectedNode = nodes.find((node) => node.id === selectedNodeId);
@@ -49,9 +75,11 @@ export const PropertyPanel: React.FC = () => {
         width: `${width}px`,
         height: '100%',
         backgroundColor: 'var(--vscode-sideBar-background)',
-        borderLeft: '1px solid var(--vscode-panel-border)',
+        border: '1px solid var(--vscode-panel-border)',
+        borderRadius: '4px',
         padding: '16px',
         overflowY: 'auto',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
       }}
     >
       <ResizeHandle onMouseDown={handleMouseDown} />
@@ -77,7 +105,7 @@ export const PropertyPanel: React.FC = () => {
         </div>
         <button
           type="button"
-          onClick={closePropertyPanel}
+          onClick={handleClose}
           style={{
             padding: '4px 8px',
             backgroundColor: 'transparent',
