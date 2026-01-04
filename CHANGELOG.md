@@ -1,3 +1,9 @@
+## [3.12.1](https://github.com/breaking-brake/cc-wf-studio/compare/v3.12.0...v3.12.1) (2026-01-04)
+
+### Improvements
+
+* add on-canvas description panel for workflow editing ([#360](https://github.com/breaking-brake/cc-wf-studio/issues/360)) ([ee9fa11](https://github.com/breaking-brake/cc-wf-studio/commit/ee9fa1127f8e108198c6609970f00e9c79a6ffeb))
+
 ## [3.12.0](https://github.com/breaking-brake/cc-wf-studio/compare/v3.11.3...v3.12.0) (2026-01-03)
 
 ### Features
