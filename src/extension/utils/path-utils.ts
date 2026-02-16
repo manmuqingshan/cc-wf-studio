@@ -151,6 +151,36 @@ export function getRooProjectSkillsDir(): string | null {
   return path.join(workspaceRoot, '.roo', 'skills');
 }
 
+/**
+ * Get the Gemini CLI user-scope Skills directory path
+ *
+ * @returns Absolute path to ~/.gemini/skills/
+ *
+ * @example
+ * // Unix: /Users/username/.gemini/skills
+ * // Windows: C:\Users\username\.gemini\skills
+ */
+export function getGeminiUserSkillsDir(): string {
+  return path.join(os.homedir(), '.gemini', 'skills');
+}
+
+/**
+ * Get the Gemini CLI project-scope Skills directory path
+ *
+ * @returns Absolute path to .gemini/skills/ in workspace root, or null if no workspace
+ *
+ * @example
+ * // Unix: /workspace/myproject/.gemini/skills
+ * // Windows: C:\workspace\myproject\.gemini\skills
+ */
+export function getGeminiProjectSkillsDir(): string | null {
+  const workspaceRoot = getWorkspaceRoot();
+  if (!workspaceRoot) {
+    return null;
+  }
+  return path.join(workspaceRoot, '.gemini', 'skills');
+}
+
 // =====================================================================
 // MCP Configuration Paths
 // =====================================================================
@@ -199,6 +229,36 @@ export function getVSCodeMcpConfigPath(): string | null {
  */
 export function getCodexUserMcpConfigPath(): string {
   return path.join(os.homedir(), '.codex', 'config.toml');
+}
+
+/**
+ * Get the Gemini CLI user-scope MCP config path (~/.gemini/settings.json)
+ *
+ * @returns Absolute path to user MCP config
+ *
+ * @example
+ * // Unix: /Users/username/.gemini/settings.json
+ * // Windows: C:\Users\username\.gemini\settings.json
+ */
+export function getGeminiUserMcpConfigPath(): string {
+  return path.join(os.homedir(), '.gemini', 'settings.json');
+}
+
+/**
+ * Get the Gemini CLI project-scope MCP config path (.gemini/settings.json)
+ *
+ * @returns Absolute path to project MCP config, or null if no workspace
+ *
+ * @example
+ * // Unix: /workspace/myproject/.gemini/settings.json
+ * // Windows: C:\workspace\myproject\.gemini\settings.json
+ */
+export function getGeminiProjectMcpConfigPath(): string | null {
+  const workspaceRoot = getWorkspaceRoot();
+  if (!workspaceRoot) {
+    return null;
+  }
+  return path.join(workspaceRoot, '.gemini', 'settings.json');
 }
 
 /**
