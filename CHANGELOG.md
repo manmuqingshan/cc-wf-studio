@@ -1,3 +1,9 @@
+## [3.26.0](https://github.com/breaking-brake/cc-wf-studio/compare/v3.25.0...v3.26.0) (2026-02-24)
+
+### Features
+
+* add Cursor editor provider support ([#606](https://github.com/breaking-brake/cc-wf-studio/issues/606)) ([1b0e3bd](https://github.com/breaking-brake/cc-wf-studio/commit/1b0e3bd34dd1b57b7a6e89198d6232d78e39fe4d))
+
 ## [3.25.0](https://github.com/breaking-brake/cc-wf-studio/compare/v3.24.1...v3.25.0) (2026-02-21)
 
 ### Features
