@@ -1,3 +1,15 @@
+## [3.26.1](https://github.com/breaking-brake/cc-wf-studio/compare/v3.26.0...v3.26.1) (2026-02-28)
+
+### Bug Fixes
+
+* add category to Snyk SARIF upload for consistent PR checks ([#612](https://github.com/breaking-brake/cc-wf-studio/issues/612)) ([5224e1c](https://github.com/breaking-brake/cc-wf-studio/commit/5224e1c2b0505125d1b743d3e13a42aa367d35ab))
+
+### Improvements
+
+* change MCP node default mode to aiToolSelection in schema ([#611](https://github.com/breaking-brake/cc-wf-studio/issues/611)) ([1bc81e2](https://github.com/breaking-brake/cc-wf-studio/commit/1bc81e2ab2a19709c33ba86dd40757d95e91cbae))
+* clarify MCP node schema definitions ([#615](https://github.com/breaking-brake/cc-wf-studio/issues/615)) ([36f5998](https://github.com/breaking-brake/cc-wf-studio/commit/36f59986afbffd4eb69e2b34bafd946ed8c11d75))
+* simplify MCP node creation wizard from 7 to 4 steps ([#613](https://github.com/breaking-brake/cc-wf-studio/issues/613)) ([e17ad5f](https://github.com/breaking-brake/cc-wf-studio/commit/e17ad5f79e999e2dc94d61703bcb4a269dd1772b))
+
 ## [3.26.0](https://github.com/breaking-brake/cc-wf-studio/compare/v3.25.0...v3.26.0) (2026-02-24)
 
 ### Features
