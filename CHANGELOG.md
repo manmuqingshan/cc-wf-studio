@@ -1,3 +1,9 @@
+## [3.26.2](https://github.com/breaking-brake/cc-wf-studio/compare/v3.26.1...v3.26.2) (2026-03-01)
+
+### Bug Fixes
+
+* add DNS rebinding protection to MCP server ([#624](https://github.com/breaking-brake/cc-wf-studio/issues/624)) ([14e9b41](https://github.com/breaking-brake/cc-wf-studio/commit/14e9b41da22db3f8045d670b9abedd470ca7ad93))
+
 ## [3.26.1](https://github.com/breaking-brake/cc-wf-studio/compare/v3.26.0...v3.26.1) (2026-02-28)
 
 ### Bug Fixes
