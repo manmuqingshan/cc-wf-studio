@@ -372,7 +372,10 @@ export const zhTWWebviewTranslations: WebviewTranslationKeys = {
   'terms.malware': '惡意軟體和勒索軟體的創建',
   'terms.personalDataTheft': '未經授權收集或濫用個人資訊',
   'terms.otherIllegalActs': '其他非法活動或對他人造成傷害的行為',
-  'terms.liability': '違規時用戶將承擔全部責任。',
+  'terms.apiKeyLiabilityHeading': 'API 使用須知（新增）',
+  'terms.apiKeyLiability':
+    '使用 Claude API 整合功能時，API 金鑰的管理以及 API 使用產生的費用由使用者自行承擔。',
+  'terms.liability': '因使用本工具而產生的任何違規行為或損害，使用者將承擔全部責任。',
   'terms.agree': '我同意以上內容',
   'terms.agreeButton': '同意並開始',
   'terms.cancelButton': '取消',
@@ -887,4 +890,8 @@ export const zhTWWebviewTranslations: WebviewTranslationKeys = {
   'description.panel.title': '描述',
   'description.panel.show': '顯示描述面板',
   'description.panel.hide': '隱藏描述面板',
+
+  // Claude API Upload Dialog
+  'claudeApi.description':
+    '將工作流程作為 Agent Skills 上傳到 Claude API，並透過 Messages API 執行。\n結合 MCP 伺服器、程式碼執行和其他技能，您可以將專業 AI 代理作為 API 發佈，用於文件處理、資料分析、客戶支援等場景。',
 };

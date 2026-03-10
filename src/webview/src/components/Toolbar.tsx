@@ -43,6 +43,7 @@ import { useWorkflowStore } from '../stores/workflow-store';
 import { EditableNameField } from './common/EditableNameField';
 import { ProcessingOverlay } from './common/ProcessingOverlay';
 import { StyledTooltipProvider } from './common/StyledTooltip';
+import { ClaudeApiUploadDialog } from './dialogs/ClaudeApiUploadDialog';
 import { ConfirmDialog } from './dialogs/ConfirmDialog';
 import { MoreActionsDropdown } from './toolbar/MoreActionsDropdown';
 import { SlashCommandOptionsDropdown } from './toolbar/SlashCommandOptionsDropdown';
@@ -141,6 +142,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   // Cursor integration
   const [isCursorExporting, setIsCursorExporting] = useState(false);
   const [isCursorRunning, setIsCursorRunning] = useState(false);
+  // Claude API Upload
+  const [isClaudeApiUploadDialogOpen, setIsClaudeApiUploadDialogOpen] = useState(false);
   const generationNameRequestIdRef = useRef<string | null>(null);
 
   // Workflow name validation pattern (lowercase, numbers, hyphens, underscores only)
@@ -2302,6 +2305,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
             {/* More Actions Dropdown */}
             <MoreActionsDropdown
+              onOpenClaudeApi={() => setIsClaudeApiUploadDialogOpen(true)}
               onShareToSlack={onShareToSlack}
               onResetWorkflow={() => setShowResetConfirm(true)}
               onStartTour={onStartTour}
@@ -2329,6 +2333,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
         {/* Processing Overlay (Phase 3.10) */}
         <ProcessingOverlay isVisible={isProcessing} />
+
+        {/* Claude API Upload Dialog */}
+        <ClaudeApiUploadDialog
+          isOpen={isClaudeApiUploadDialogOpen}
+          onClose={() => setIsClaudeApiUploadDialogOpen(false)}
+        />
 
         {/* Reset Workflow Confirmation Dialog */}
         <ConfirmDialog

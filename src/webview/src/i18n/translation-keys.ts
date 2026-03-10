@@ -351,6 +351,8 @@ export interface WebviewTranslationKeys {
   'terms.malware': string;
   'terms.personalDataTheft': string;
   'terms.otherIllegalActs': string;
+  'terms.apiKeyLiabilityHeading': string;
+  'terms.apiKeyLiability': string;
   'terms.liability': string;
   'terms.agree': string;
   'terms.agreeButton': string;
@@ -842,4 +844,7 @@ export interface WebviewTranslationKeys {
   'description.panel.title': string;
   'description.panel.show': string;
   'description.panel.hide': string;
+
+  // Claude API Upload Dialog
+  'claudeApi.description': string;
 }

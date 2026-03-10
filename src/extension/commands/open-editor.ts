@@ -34,11 +34,27 @@ import {
 import { SlackApiService } from '../services/slack-api-service';
 import { executeSlashCommandInTerminal } from '../services/terminal-execution-service';
 import { listCopilotModels } from '../services/vscode-lm-service';
+import { AnthropicApiKeyManager } from '../utils/anthropic-api-key-manager';
 import { migrateWorkflow } from '../utils/migrate-workflow';
 import { SlackTokenManager } from '../utils/slack-token-manager';
 import { validateWorkflowFile } from '../utils/workflow-validator';
 import { getWebviewContent } from '../webview-content';
 import { handleExportForAntigravity, handleRunForAntigravity } from './antigravity-handlers';
+import {
+  handleCheckAnthropicApiKey,
+  handleClearAnthropicApiKey,
+  handleDeleteCustomSkill,
+  handleExecuteUploadedSkill,
+  handleGetMcpServerTypes,
+  handleGetSavedMcpServerUrls,
+  handleGetSkillVersionDetails,
+  handleListCustomSkills,
+  handleLookupMcpRegistry,
+  handleSaveMcpServerUrls,
+  handleStoreAnthropicApiKey,
+  handleUploadDependentSkill,
+  handleUploadToClaudeApi,
+} from './claude-api-handlers';
 import { handleExportForCodexCli, handleRunForCodexCli } from './codex-handlers';
 import {
   handleExportForCopilot,
@@ -86,6 +102,7 @@ let fileService: FileService;
 let slackTokenManager: SlackTokenManager;
 let slackApiService: SlackApiService;
 let activeOAuthService: ReturnType<typeof createOAuthService> | null = null;
+let anthropicApiKeyManager: AnthropicApiKeyManager;
 
 /**
  * Import parameters for workflow import from Slack
@@ -142,6 +159,9 @@ export function registerOpenEditorCommand(
       slackTokenManager = new SlackTokenManager(context);
       slackApiService = new SlackApiService(slackTokenManager);
 
+      // Initialize Anthropic API Key Manager
+      anthropicApiKeyManager = new AnthropicApiKeyManager(context);
+
       const columnToShowIn = vscode.window.activeTextEditor
         ? vscode.window.activeTextEditor.viewColumn
         : undefined;
@@ -189,8 +209,10 @@ export function registerOpenEditorCommand(
         mcpManager.setWebview(currentPanel.webview);
       }
 
-      // Check if user has accepted terms of use
-      const hasAcceptedTerms = context.globalState.get<boolean>('hasAcceptedTerms', false);
+      // Check if user has accepted terms of use (version-based)
+      const CURRENT_TERMS_VERSION = 2;
+      const acceptedVersion = context.globalState.get<number>('acceptedTermsVersion', 0);
+      const hasAcceptedTerms = acceptedVersion >= CURRENT_TERMS_VERSION;
 
       // Store import params for use when WEBVIEW_READY is received
       // This replaces the unreliable setTimeout-based approach (fixes Issue #396)
@@ -762,8 +784,8 @@ export function registerOpenEditorCommand(
               break;
 
             case 'ACCEPT_TERMS':
-              // User accepted terms of use
-              await context.globalState.update('hasAcceptedTerms', true);
+              // User accepted terms of use (save current version)
+              await context.globalState.update('acceptedTermsVersion', CURRENT_TERMS_VERSION);
               // Update webview with new state
               webview.postMessage({
                 type: 'INITIAL_STATE',
@@ -1244,6 +1266,30 @@ export function registerOpenEditorCommand(
               }
               break;
 
+            case 'GET_RESPONSE_LANGUAGE':
+              {
+                const savedLanguage = context.globalState.get<string>(
+                  'claude-api-response-language'
+                );
+                webview.postMessage({
+                  type: 'GET_RESPONSE_LANGUAGE_RESULT',
+                  requestId: message.requestId,
+                  payload: {
+                    language: savedLanguage || null,
+                  },
+                });
+              }
+              break;
+
+            case 'SET_RESPONSE_LANGUAGE':
+              if (message.payload?.language) {
+                await context.globalState.update(
+                  'claude-api-response-language',
+                  message.payload.language
+                );
+              }
+              break;
+
             case 'OPEN_IN_EDITOR':
               // Open text content in VSCode native editor
               if (message.payload) {
@@ -1584,6 +1630,114 @@ export function registerOpenEditorCommand(
               }
               break;
             }
+
+            case 'UPLOAD_TO_CLAUDE_API':
+              if (message.payload?.workflow) {
+                await handleUploadToClaudeApi(
+                  webview,
+                  message.payload,
+                  anthropicApiKeyManager,
+                  message.requestId
+                );
+              } else {
+                webview.postMessage({
+                  type: 'UPLOAD_TO_CLAUDE_API_FAILED',
+                  requestId: message.requestId,
+                  payload: {
+                    errorCode: 'UNKNOWN_ERROR',
+                    errorMessage: 'Workflow is required',
+                    timestamp: new Date().toISOString(),
+                  },
+                });
+              }
+              break;
+
+            case 'EXECUTE_UPLOADED_SKILL':
+              if (message.payload?.skillId && message.payload?.prompt) {
+                await handleExecuteUploadedSkill(
+                  webview,
+                  message.payload,
+                  anthropicApiKeyManager,
+                  message.requestId
+                );
+              } else {
+                webview.postMessage({
+                  type: 'EXECUTE_UPLOADED_SKILL_FAILED',
+                  requestId: message.requestId,
+                  payload: {
+                    errorCode: 'INVALID_PAYLOAD',
+                    errorMessage: 'skillId and prompt are required',
+                    timestamp: new Date().toISOString(),
+                  },
+                });
+              }
+              break;
+
+            case 'STORE_ANTHROPIC_API_KEY':
+              if (message.payload?.apiKey) {
+                await handleStoreAnthropicApiKey(
+                  webview,
+                  message.payload,
+                  anthropicApiKeyManager,
+                  message.requestId
+                );
+              }
+              break;
+
+            case 'CHECK_ANTHROPIC_API_KEY':
+              await handleCheckAnthropicApiKey(webview, anthropicApiKeyManager, message.requestId);
+              break;
+
+            case 'CLEAR_ANTHROPIC_API_KEY':
+              await handleClearAnthropicApiKey(webview, anthropicApiKeyManager, message.requestId);
+              break;
+
+            case 'LIST_CUSTOM_SKILLS':
+              await handleListCustomSkills(webview, anthropicApiKeyManager, message.requestId);
+              break;
+
+            case 'DELETE_CUSTOM_SKILL':
+              await handleDeleteCustomSkill(
+                webview,
+                message.payload,
+                anthropicApiKeyManager,
+                message.requestId
+              );
+              break;
+
+            case 'GET_MCP_SERVER_TYPES':
+              await handleGetMcpServerTypes(webview, message.payload, message.requestId);
+              break;
+
+            case 'UPLOAD_DEPENDENT_SKILL':
+              await handleUploadDependentSkill(
+                webview,
+                message.payload,
+                anthropicApiKeyManager,
+                message.requestId
+              );
+              break;
+
+            case 'GET_SAVED_MCP_SERVER_URLS':
+              await handleGetSavedMcpServerUrls(context, webview, message.requestId);
+              break;
+
+            case 'SAVE_MCP_SERVER_URLS':
+              await handleSaveMcpServerUrls(context, webview, message.payload, message.requestId);
+              break;
+
+            case 'LOOKUP_MCP_REGISTRY':
+              await handleLookupMcpRegistry(webview, message.payload, message.requestId);
+              break;
+
+            case 'GET_SKILL_VERSION_DETAILS':
+              await handleGetSkillVersionDetails(
+                webview,
+                message.payload,
+                anthropicApiKeyManager,
+                message.requestId
+              );
+              break;
 
             default:
               console.warn('Unknown message type:', message);

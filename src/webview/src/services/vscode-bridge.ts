@@ -7,7 +7,12 @@
 
 import type {
   AiEditingProvider,
+  CheckAnthropicApiKeyResultPayload,
+  DeleteCustomSkillSuccessPayload,
   EditorContentUpdatedPayload,
+  ExecuteSkillProgressPayload,
+  ExecuteUploadedSkillPayload,
+  ExecuteUploadedSkillSuccessPayload,
   ExportForAntigravityPayload,
   ExportForAntigravitySuccessPayload,
   ExportForCodexCliPayload,
@@ -24,6 +29,11 @@ import type {
   ExportForRooCodeSuccessPayload,
   ExportWorkflowPayload,
   ExtensionMessage,
+  GetMcpServerTypesResultPayload,
+  GetSavedMcpServerUrlsResultPayload,
+  GetSkillVersionDetailsSuccessPayload,
+  ListCustomSkillsSuccessPayload,
+  LookupMcpRegistryResultPayload,
   OpenInEditorPayload,
   RunAsSlashCommandPayload,
   RunForAntigravityPayload,
@@ -41,6 +51,9 @@ import type {
   RunForRooCodePayload,
   RunForRooCodeSuccessPayload,
   SaveWorkflowPayload,
+  UploadDependentSkillSuccessPayload,
+  UploadToClaudeApiPayload,
+  UploadToClaudeApiSuccessPayload,
   Workflow,
 } from '@shared/types/messages';
 import { vscode } from '../main';
@@ -1121,5 +1134,469 @@ export function runAiEditingSkill(provider: AiEditingProvider): Promise<void> {
       window.removeEventListener('message', handler);
       reject(new Error('Request timed out'));
     }, 15000);
+  });
+}
+
+/**
+ * Upload workflow to Claude API as Custom Skill
+ */
+export function uploadToClaudeApi(workflow: Workflow): Promise<UploadToClaudeApiSuccessPayload> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+
+        if (message.type === 'UPLOAD_TO_CLAUDE_API_SUCCESS') {
+          resolve(message.payload as UploadToClaudeApiSuccessPayload);
+        } else if (message.type === 'UPLOAD_TO_CLAUDE_API_FAILED') {
+          reject(new Error(message.payload?.errorMessage || 'Failed to upload to Claude API'));
+        }
+      }
+    };
+
+    window.addEventListener('message', handler);
+
+    const payload: UploadToClaudeApiPayload = { workflow };
+    vscode.postMessage({ type: 'UPLOAD_TO_CLAUDE_API', requestId, payload });
+
+    // Timeout after 60 seconds (API communication)
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 60000);
+  });
+}
+
+/**
+ * Execute an uploaded skill via Messages API (with streaming support)
+ */
+export function executeUploadedSkill(
+  skillId: string,
+  prompt: string,
+  model: string,
+  onProgress?: (payload: { chunk: string; accumulatedText: string }) => void,
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+  containerId?: string,
+  mcpServers?: Array<{ id: string; url: string; authorization_token?: string }>,
+  additionalSkillIds?: string[],
+  system?: string
+): Promise<ExecuteUploadedSkillSuccessPayload> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+
+      if (message.requestId === requestId) {
+        if (message.type === 'EXECUTE_SKILL_PROGRESS') {
+          const progress = message.payload as ExecuteSkillProgressPayload;
+          onProgress?.({ chunk: progress.chunk, accumulatedText: progress.accumulatedText });
+          return; // Keep listener active for more chunks
+        }
+
+        window.removeEventListener('message', handler);
+
+        if (message.type === 'EXECUTE_UPLOADED_SKILL_SUCCESS') {
+          resolve(message.payload as ExecuteUploadedSkillSuccessPayload);
+        } else if (message.type === 'EXECUTE_UPLOADED_SKILL_FAILED') {
+          reject(new Error(message.payload?.errorMessage || 'Failed to execute skill'));
+        }
+      }
+    };
+
+    window.addEventListener('message', handler);
+
+    const payload: ExecuteUploadedSkillPayload = {
+      skillId,
+      prompt,
+      model,
+      conversationHistory,
+      containerId,
+      mcpServers,
+      additionalSkillIds,
+      system,
+    };
+    vscode.postMessage({ type: 'EXECUTE_UPLOADED_SKILL', requestId, payload });
+
+    // Timeout after 300 seconds (streaming execution can be slow)
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 300000);
+  });
+}
+
+/**
+ * List custom skills from Claude API
+ */
+export function listCustomSkills(): Promise<ListCustomSkillsSuccessPayload> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+
+        if (message.type === 'LIST_CUSTOM_SKILLS_SUCCESS') {
+          resolve(message.payload as ListCustomSkillsSuccessPayload);
+        } else if (message.type === 'LIST_CUSTOM_SKILLS_FAILED') {
+          reject(new Error(message.payload?.errorMessage || 'Failed to list skills'));
+        }
+      }
+    };
+
+    window.addEventListener('message', handler);
+    vscode.postMessage({ type: 'LIST_CUSTOM_SKILLS', requestId });
+
+    // Timeout after 30 seconds
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 30000);
+  });
+}
+
+/**
+ * Delete a custom skill from Claude API
+ */
+export function deleteCustomSkill(skillId: string): Promise<DeleteCustomSkillSuccessPayload> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+
+        if (message.type === 'DELETE_CUSTOM_SKILL_SUCCESS') {
+          resolve(message.payload as DeleteCustomSkillSuccessPayload);
+        } else if (message.type === 'DELETE_CUSTOM_SKILL_FAILED') {
+          reject(new Error(message.payload?.errorMessage || 'Failed to delete skill'));
+        }
+      }
+    };
+
+    window.addEventListener('message', handler);
+    vscode.postMessage({ type: 'DELETE_CUSTOM_SKILL', requestId, payload: { skillId } });
+
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 10000);
+  });
+}
+
+/**
+ * Store Anthropic API key in secure storage
+ */
+export function storeAnthropicApiKey(apiKey: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+
+        if (message.type === 'STORE_ANTHROPIC_API_KEY_SUCCESS') {
+          resolve();
+        } else {
+          reject(
+            new Error(
+              (message.payload as { errorMessage?: string })?.errorMessage ||
+                'Failed to store API key'
+            )
+          );
+        }
+      }
+    };
+
+    window.addEventListener('message', handler);
+    vscode.postMessage({ type: 'STORE_ANTHROPIC_API_KEY', requestId, payload: { apiKey } });
+
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 10000);
+  });
+}
+
+/**
+ * Check if Anthropic API key is configured
+ */
+export function checkAnthropicApiKey(): Promise<CheckAnthropicApiKeyResultPayload> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+
+        if (message.type === 'CHECK_ANTHROPIC_API_KEY_RESULT') {
+          resolve(message.payload as CheckAnthropicApiKeyResultPayload);
+        } else {
+          reject(new Error('Failed to check API key'));
+        }
+      }
+    };
+
+    window.addEventListener('message', handler);
+    vscode.postMessage({ type: 'CHECK_ANTHROPIC_API_KEY', requestId });
+
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 10000);
+  });
+}
+
+/**
+ * Clear Anthropic API key from secure storage
+ */
+export function clearAnthropicApiKey(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+
+        if (message.type === 'CLEAR_ANTHROPIC_API_KEY_SUCCESS') {
+          resolve();
+        } else {
+          reject(new Error('Failed to clear API key'));
+        }
+      }
+    };
+
+    window.addEventListener('message', handler);
+    vscode.postMessage({ type: 'CLEAR_ANTHROPIC_API_KEY', requestId });
+
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 10000);
+  });
+}
+
+/**
+ * Get MCP server types for a list of server IDs
+ *
+ * @param serverIds - Array of server IDs to check
+ * @returns Promise that resolves with server types
+ */
+export function getMcpServerTypes(serverIds: string[]): Promise<GetMcpServerTypesResultPayload> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+        if (message.type === 'GET_MCP_SERVER_TYPES_RESULT') {
+          resolve(message.payload as GetMcpServerTypesResultPayload);
+        } else {
+          reject(new Error('Failed to get MCP server types'));
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    vscode.postMessage({ type: 'GET_MCP_SERVER_TYPES', requestId, payload: { serverIds } });
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 10000);
+  });
+}
+
+/**
+ * Get saved response language from global state
+ */
+export function getResponseLanguage(): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+        if (message.type === 'GET_RESPONSE_LANGUAGE_RESULT') {
+          resolve((message.payload as { language: string | null }).language);
+        } else {
+          reject(new Error('Failed to get response language'));
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    vscode.postMessage({ type: 'GET_RESPONSE_LANGUAGE', requestId });
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 10000);
+  });
+}
+
+/**
+ * Save response language to global state
+ */
+export function saveResponseLanguage(language: string): void {
+  vscode.postMessage({ type: 'SET_RESPONSE_LANGUAGE', payload: { language } });
+}
+
+/**
+ * Upload a dependent skill file directly to Claude API
+ */
+export function uploadDependentSkill(
+  skillName: string,
+  skillPath: string
+): Promise<UploadDependentSkillSuccessPayload> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+        if (message.type === 'UPLOAD_DEPENDENT_SKILL_SUCCESS') {
+          resolve(message.payload as UploadDependentSkillSuccessPayload);
+        } else if (message.type === 'UPLOAD_DEPENDENT_SKILL_FAILED') {
+          reject(new Error(message.payload?.errorMessage || 'Failed to upload dependent skill'));
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    vscode.postMessage({
+      type: 'UPLOAD_DEPENDENT_SKILL',
+      requestId,
+      payload: { skillName, skillPath },
+    });
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 60000);
+  });
+}
+
+/**
+ * Get saved MCP server URLs from globalState
+ */
+export function getSavedMcpServerUrls(): Promise<GetSavedMcpServerUrlsResultPayload> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+        if (message.type === 'GET_SAVED_MCP_SERVER_URLS_RESULT') {
+          resolve(message.payload as GetSavedMcpServerUrlsResultPayload);
+        } else {
+          reject(new Error('Failed to get saved MCP server URLs'));
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    vscode.postMessage({ type: 'GET_SAVED_MCP_SERVER_URLS', requestId });
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 10000);
+  });
+}
+
+/**
+ * Save MCP server URLs to globalState
+ */
+export function saveMcpServerUrls(urls: Record<string, string>): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+        if (message.type === 'SAVE_MCP_SERVER_URLS_SUCCESS') {
+          resolve();
+        } else {
+          reject(new Error('Failed to save MCP server URLs'));
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    vscode.postMessage({ type: 'SAVE_MCP_SERVER_URLS', requestId, payload: { urls } });
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 10000);
+  });
+}
+
+/**
+ * Lookup MCP server URLs from the official MCP Registry
+ */
+export function lookupMcpRegistry(serverIds: string[]): Promise<LookupMcpRegistryResultPayload> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+        if (message.type === 'LOOKUP_MCP_REGISTRY_RESULT') {
+          resolve(message.payload as LookupMcpRegistryResultPayload);
+        } else {
+          reject(new Error('Failed to lookup MCP registry'));
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    vscode.postMessage({ type: 'LOOKUP_MCP_REGISTRY', requestId, payload: { serverIds } });
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 10000);
+  });
+}
+
+/**
+ * Get skill version details from Claude API.
+ */
+export function getSkillVersionDetails(
+  skillId: string,
+  version: string
+): Promise<GetSkillVersionDetailsSuccessPayload> {
+  return new Promise((resolve, reject) => {
+    const requestId = `req-${Date.now()}-${Math.random()}`;
+    const handler = (event: MessageEvent) => {
+      const message: ExtensionMessage = event.data;
+      if (message.requestId === requestId) {
+        window.removeEventListener('message', handler);
+        if (message.type === 'GET_SKILL_VERSION_DETAILS_SUCCESS') {
+          resolve(message.payload as GetSkillVersionDetailsSuccessPayload);
+        } else {
+          reject(
+            new Error(
+              (message.payload as any)?.errorMessage || 'Failed to get skill version details'
+            )
+          );
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    vscode.postMessage({
+      type: 'GET_SKILL_VERSION_DETAILS',
+      requestId,
+      payload: { skillId, version },
+    });
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('Request timed out'));
+    }, 10000);
   });
 }
