@@ -1,3 +1,9 @@
+## [3.30.4](https://github.com/breaking-brake/cc-wf-studio/compare/v3.30.3...v3.30.4) (2026-03-23)
+
+### Bug Fixes
+
+* unify canvas toolbar toggle button sizes to 34x34px ([#681](https://github.com/breaking-brake/cc-wf-studio/issues/681)) ([77bee7c](https://github.com/breaking-brake/cc-wf-studio/commit/77bee7c53961f33f54cfed791a0dc2ed7edb3c57))
+
 ## [3.30.3](https://github.com/breaking-brake/cc-wf-studio/compare/v3.30.2...v3.30.3) (2026-03-23)
 
 ### Bug Fixes
