@@ -1323,6 +1323,47 @@ export const useWorkflowStore = create<WorkflowStore>()(
   )
 );
 
+// ============================================================================
+// Canvas Revision Tracking (Optimistic Concurrency Control)
+// ============================================================================
+// External counter to avoid unnecessary re-renders.
+// Only increments on content-meaningful changes (excludes selection, dimensions).
+
+let _canvasRevision = 0;
+const _initialState = useWorkflowStore.getState();
+let _prevNodesRef: Node[] = _initialState.nodes;
+let _prevEdgesRef: Edge[] = _initialState.edges;
+
+/**
+ * Strip non-content fields for comparison (same logic as partialize for undo/redo).
+ * Selection state and React Flow measurement data are NOT content changes.
+ */
+function contentFingerprint(nodes: Node[], edges: Edge[]): string {
+  const n = nodes.map(({ selected, width, height, ...rest }) => rest);
+  const e = edges.map(({ selected, ...rest }) => rest);
+  return JSON.stringify({ n, e });
+}
+
+let _prevFingerprint = contentFingerprint(_initialState.nodes, _initialState.edges);
+
+useWorkflowStore.subscribe((state) => {
+  // Fast path: skip if references haven't changed
+  if (state.nodes === _prevNodesRef && state.edges === _prevEdgesRef) return;
+  _prevNodesRef = state.nodes;
+  _prevEdgesRef = state.edges;
+
+  // Slow path: deep content comparison (only when references differ)
+  const fp = contentFingerprint(state.nodes, state.edges);
+  if (fp !== _prevFingerprint) {
+    _prevFingerprint = fp;
+    _canvasRevision++;
+  }
+});
+
+export function getCanvasRevision(): number {
+  return _canvasRevision;
+}
+
 /**
  * Check if the current canvas has unsaved changes compared to activeWorkflow
  *
