@@ -1,3 +1,14 @@
+## [3.32.0](https://github.com/breaking-brake/cc-wf-studio/compare/v3.31.1...v3.32.0) (2026-04-02)
+
+### Features
+
+* [Experimental] Commentary AI for real-time workflow narration ([#695](https://github.com/breaking-brake/cc-wf-studio/issues/695)) ([9cf4d07](https://github.com/breaking-brake/cc-wf-studio/commit/9cf4d077a8e0a4e49c12f0decc78a4531e799afc))
+* add undo/redo for canvas nodes and edges ([#699](https://github.com/breaking-brake/cc-wf-studio/issues/699)) ([d80ad4e](https://github.com/breaking-brake/cc-wf-studio/commit/d80ad4e778596b289cfba2ae30cb329a49a9ff33))
+
+### Improvements
+
+* add update_nodes MCP tool for partial node updates ([#697](https://github.com/breaking-brake/cc-wf-studio/issues/697)) ([fc6152f](https://github.com/breaking-brake/cc-wf-studio/commit/fc6152fc370fb1330cb6ad8b687d05a2158349aa))
+
 ## [3.31.1](https://github.com/breaking-brake/cc-wf-studio/compare/v3.31.0...v3.31.1) (2026-03-27)
 
 ### Bug Fixes
