@@ -1,3 +1,13 @@
+## [3.32.1](https://github.com/breaking-brake/cc-wf-studio/compare/v3.32.0...v3.32.1) (2026-04-03)
+
+### Bug Fixes
+
+* support type, parentId, and style updates in update_nodes MCP tool ([#705](https://github.com/breaking-brake/cc-wf-studio/issues/705)) ([d51660e](https://github.com/breaking-brake/cc-wf-studio/commit/d51660ed505a45407ef30b648f69729d05236e93)), closes [#704](https://github.com/breaking-brake/cc-wf-studio/issues/704)
+
+### Improvements
+
+* add canvas revision tracking for optimistic concurrency control ([#702](https://github.com/breaking-brake/cc-wf-studio/issues/702)) ([bf38a6e](https://github.com/breaking-brake/cc-wf-studio/commit/bf38a6e421be9274e1b11bc859e3a08240f3899d))
+
 ## [3.32.0](https://github.com/breaking-brake/cc-wf-studio/compare/v3.31.1...v3.32.0) (2026-04-02)
 
 ### Features
