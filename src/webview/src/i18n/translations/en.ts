@@ -432,6 +432,10 @@ export const enWebviewTranslations: WebviewTranslationKeys = {
   'dialog.diffPreview.filesToCreate': 'Files to be created',
   'dialog.diffPreview.accept': 'Accept',
   'dialog.diffPreview.reject': 'Reject',
+  'dialog.diffPreview.revisionConflict':
+    'Warning: The canvas was modified after the AI fetched the workflow. Review the changes carefully before accepting.',
+  'dialog.diffPreview.applyAnyway': 'Apply Anyway',
+  'dialog.diffPreview.retryWithLatest': 'Retry with Latest',
 
   // Reset Workflow Confirmation Dialog
   'toolbar.resetWorkflow': 'Reset Workflow',

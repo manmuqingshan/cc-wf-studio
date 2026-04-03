@@ -11,8 +11,10 @@ interface DiffPreviewDialogProps {
   diffSummary: WorkflowDiffSummary | null;
   description?: string;
   plannedFiles?: PlannedSubAgentFile[];
+  hasRevisionConflict?: boolean;
   onAccept: () => void;
   onReject: () => void;
+  onRetry?: () => void;
 }
 
 export const DiffPreviewDialog: React.FC<DiffPreviewDialogProps> = ({
@@ -20,8 +22,10 @@ export const DiffPreviewDialog: React.FC<DiffPreviewDialogProps> = ({
   diffSummary,
   description,
   plannedFiles,
+  hasRevisionConflict,
   onAccept,
   onReject,
+  onRetry,
 }) => {
   const { t } = useTranslation();
 
@@ -77,6 +81,25 @@ export const DiffPreviewDialog: React.FC<DiffPreviewDialogProps> = ({
                 ? t('dialog.diffPreview.newWorkflow')
                 : t('dialog.diffPreview.description')}
             </Dialog.Description>
+
+            {/* Revision conflict warning */}
+            {hasRevisionConflict && (
+              <div
+                style={{
+                  marginBottom: '12px',
+                  padding: '8px 12px',
+                  borderLeft: '3px solid var(--vscode-editorWarning-foreground, #cca700)',
+                  backgroundColor:
+                    'var(--vscode-inputValidation-warningBackground, rgba(204, 167, 0, 0.1))',
+                  borderRadius: '0 2px 2px 0',
+                  fontSize: '13px',
+                  lineHeight: '1.5',
+                  color: 'var(--vscode-editorWarning-foreground, #cca700)',
+                }}
+              >
+                {t('dialog.diffPreview.revisionConflict')}
+              </div>
+            )}
 
             {/* Agent description */}
             {description && (
@@ -387,28 +410,79 @@ export const DiffPreviewDialog: React.FC<DiffPreviewDialogProps> = ({
               >
                 {t('dialog.diffPreview.reject')}
               </button>
-              <button
-                type="button"
-                onClick={onAccept}
-                style={{
-                  padding: '6px 16px',
-                  backgroundColor: 'var(--vscode-button-background)',
-                  color: 'var(--vscode-button-foreground)',
-                  border: 'none',
-                  borderRadius: '2px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--vscode-button-hoverBackground)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--vscode-button-background)';
-                }}
-              >
-                {t('dialog.diffPreview.accept')}
-              </button>
+              {hasRevisionConflict && onRetry ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={onAccept}
+                    style={{
+                      padding: '6px 16px',
+                      backgroundColor: 'var(--vscode-button-secondaryBackground)',
+                      color: 'var(--vscode-button-secondaryForeground)',
+                      border: 'none',
+                      borderRadius: '2px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        'var(--vscode-button-secondaryHoverBackground)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        'var(--vscode-button-secondaryBackground)';
+                    }}
+                  >
+                    {t('dialog.diffPreview.applyAnyway')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    style={{
+                      padding: '6px 16px',
+                      backgroundColor: 'var(--vscode-button-background)',
+                      color: 'var(--vscode-button-foreground)',
+                      border: 'none',
+                      borderRadius: '2px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        'var(--vscode-button-hoverBackground)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--vscode-button-background)';
+                    }}
+                  >
+                    {t('dialog.diffPreview.retryWithLatest')}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onAccept}
+                  style={{
+                    padding: '6px 16px',
+                    backgroundColor: 'var(--vscode-button-background)',
+                    color: 'var(--vscode-button-foreground)',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--vscode-button-hoverBackground)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--vscode-button-background)';
+                  }}
+                >
+                  {t('dialog.diffPreview.accept')}
+                </button>
+              )}
             </div>
           </Dialog.Content>
         </Dialog.Overlay>

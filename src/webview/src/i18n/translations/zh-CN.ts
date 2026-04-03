@@ -414,6 +414,10 @@ export const zhCNWebviewTranslations: WebviewTranslationKeys = {
   'dialog.diffPreview.filesToCreate': '将创建的文件',
   'dialog.diffPreview.accept': '接受',
   'dialog.diffPreview.reject': '拒绝',
+  'dialog.diffPreview.revisionConflict':
+    '警告：AI获取工作流后画布已被修改。请仔细检查变更内容后再接受。',
+  'dialog.diffPreview.applyAnyway': '仍然应用',
+  'dialog.diffPreview.retryWithLatest': '使用最新重试',
 
   // Reset Workflow Confirmation Dialog
   'toolbar.resetWorkflow': '重置工作流',
