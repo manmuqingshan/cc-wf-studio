@@ -96,6 +96,10 @@ interface WorkflowEditorProps {
   onOpenSample?: () => void;
   onDismissEmptyState?: () => void;
   onLoadWorkflow?: () => void;
+  extensionVersion?: string;
+  recentWorkflows?: Array<{ id: string; name: string }>;
+  onLoadRecent?: (id: string) => void;
+  onVersionClick?: () => void;
 }
 
 /**
@@ -108,6 +112,10 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
   onOpenSample,
   onDismissEmptyState,
   onLoadWorkflow,
+  extensionVersion,
+  recentWorkflows,
+  onLoadRecent,
+  onVersionClick,
 }) => {
   const { t } = useTranslation();
   const isCompact = useIsCompactMode();
@@ -539,6 +547,10 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
             onOpenSample={onOpenSample}
             onStartFromScratch={onDismissEmptyState}
             onLoadWorkflow={onLoadWorkflow}
+            extensionVersion={extensionVersion}
+            recentWorkflows={recentWorkflows}
+            onLoadRecent={onLoadRecent}
+            onVersionClick={onVersionClick}
           />
         )}
       </div>

@@ -34,6 +34,7 @@ import { SlackConnectionRequiredDialog } from './components/dialogs/SlackConnect
 import { SlackManualTokenDialog } from './components/dialogs/SlackManualTokenDialog';
 import { SlackShareDialog } from './components/dialogs/SlackShareDialog';
 import { SubAgentFlowDialog } from './components/dialogs/SubAgentFlowDialog';
+import { WhatsNewDialog } from './components/dialogs/WhatsNewDialog';
 import { ErrorNotification } from './components/ErrorNotification';
 import { NodePalette } from './components/NodePalette';
 import { PropertyOverlay } from './components/PropertyOverlay';
@@ -206,7 +207,10 @@ const App: React.FC = () => {
   const [showUnsavedConfirmForSample, setShowUnsavedConfirmForSample] = useState(false);
   const pendingTourAfterSampleLoadRef = useRef(false);
   const [unreadReleaseCount, setUnreadReleaseCount] = useState(0);
+  const [extensionVersion, setExtensionVersion] = useState('');
+  const [recentWorkflows, setRecentWorkflows] = useState<Array<{ id: string; name: string }>>([]);
   const [showWhatsNewBadge, setShowWhatsNewBadge] = useState(true);
+  const [isWhatsNewFromStartMenu, setIsWhatsNewFromStartMenu] = useState(false);
   const [showMcpRefreshDialog, setShowMcpRefreshDialog] = useState(false);
   const [mcpRefreshSkillName, setMcpRefreshSkillName] = useState<string>('cc-workflow-ai-editor');
   const [emptyStateDismissed, setEmptyStateDismissed] = useState(false);
@@ -381,6 +385,8 @@ const App: React.FC = () => {
         }
         setUnreadReleaseCount(payload.unreadReleaseCount ?? 0);
         setShowWhatsNewBadge(payload.showWhatsNewBadge ?? true);
+        setExtensionVersion(payload.extensionVersion ?? '');
+        setRecentWorkflows(payload.recentWorkflows ?? []);
       } else if (message.type === 'IMPORT_WORKFLOW_FROM_SLACK') {
         // Handle import workflow request from Extension Host
         // Simply forward the message back to Extension Host to trigger the import process
@@ -712,6 +718,15 @@ const App: React.FC = () => {
             onOpenSample={() => setIsSampleDialogOpen(true)}
             onDismissEmptyState={() => setEmptyStateDismissed(true)}
             onLoadWorkflow={handleLoadWorkflowFromEmptyState}
+            extensionVersion={extensionVersion}
+            recentWorkflows={recentWorkflows}
+            onLoadRecent={(id) => {
+              vscode.postMessage({
+                type: 'LOAD_WORKFLOW',
+                payload: { workflowId: id },
+              });
+            }}
+            onVersionClick={() => setIsWhatsNewFromStartMenu(true)}
           />
           {/* Processing overlay for canvas area only (with message centered in canvas) */}
           <ProcessingOverlay isVisible={isProcessing} message={t('refinement.processingOverlay')} />
@@ -766,6 +781,14 @@ const App: React.FC = () => {
         isOpen={isSampleDialogOpen}
         onClose={() => setIsSampleDialogOpen(false)}
         onLoadSample={handleLoadSample}
+      />
+
+      {/* What's New Dialog triggered from StartMenu version click */}
+      <WhatsNewDialog
+        isOpen={isWhatsNewFromStartMenu}
+        onClose={() => setIsWhatsNewFromStartMenu(false)}
+        showBadge={showWhatsNewBadge}
+        onShowBadgeChange={setShowWhatsNewBadge}
       />
 
       {/* Unsaved changes confirmation before loading sample */}
