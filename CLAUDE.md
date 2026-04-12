@@ -2,6 +2,11 @@
 
 Auto-generated from all feature plans. Last updated: 2025-11-01
 
+## Language
+
+- GitHub Issues and Pull Requests (titles, bodies, and comments) MUST be written in English.
+- This applies regardless of the conversation language used with Claude.
+
 ## Active Technologies
 - ローカルファイルシステム (`.vscode/workflows/*.json`, `.claude/skills/*.md`, `.claude/commands/*.md`) (001-cc-wf-studio)
 - TypeScript 5.3 (VSCode Extension Host), React 18.2 (Webview UI) (001-node-types-extension)
@@ -79,9 +84,7 @@ fix: add missing MCP node definition to workflow schema
 **Always run these commands in the following order after code modifications:**
 
 ```bash
-npm run format  # Auto-format code with Biome
-npm run lint    # Check for linting issues
-npm run check   # Run all Biome checks (lint + format verification)
+npm run check   # Run all Biome checks (lint + format, with auto-fix)
 npm run build   # Build extension and webview (verify compilation)
 ```
 
@@ -90,11 +93,9 @@ npm run build   # Build extension and webview (verify compilation)
 #### During Development
 1. **After code modification**:
    ```bash
-   npm run format && npm run lint && npm run check
+   npm run check
    ```
-   - Fixes formatting issues automatically
-   - Identifies linting problems
-   - Verifies code quality standards
+   - Runs lint + format with auto-fix in a single command
 
 2. **Before manual E2E testing**:
    ```bash
@@ -105,7 +106,7 @@ npm run build   # Build extension and webview (verify compilation)
 
 3. **Before git commit**:
    ```bash
-   npm run format && npm run lint && npm run check
+   npm run check
    ```
    - Ensures all code quality standards are met
    - Prevents committing code with linting/formatting issues

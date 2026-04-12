@@ -46,6 +46,7 @@ import { StartNode } from './nodes/StartNode';
 import { SubAgentFlowNodeComponent } from './nodes/SubAgentFlowNode';
 import { SubAgentNodeComponent } from './nodes/SubAgentNode';
 import { SwitchNodeComponent } from './nodes/SwitchNode';
+import { StartMenu } from './StartMenu';
 
 /**
  * Node types registration (memoized outside component for performance)
@@ -91,6 +92,14 @@ const edgeTypes: EdgeTypes = {
 interface WorkflowEditorProps {
   isNodePaletteCollapsed?: boolean;
   onExpandNodePalette?: () => void;
+  showEmptyState?: boolean;
+  onOpenSample?: () => void;
+  onDismissEmptyState?: () => void;
+  onLoadWorkflow?: () => void;
+  extensionVersion?: string;
+  recentWorkflows?: Array<{ id: string; name: string }>;
+  onLoadRecent?: (id: string) => void;
+  onVersionClick?: () => void;
 }
 
 /**
@@ -99,6 +108,14 @@ interface WorkflowEditorProps {
 export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
   isNodePaletteCollapsed = false,
   onExpandNodePalette,
+  showEmptyState = false,
+  onOpenSample,
+  onDismissEmptyState,
+  onLoadWorkflow,
+  extensionVersion,
+  recentWorkflows,
+  onLoadRecent,
+  onVersionClick,
 }) => {
   const { t } = useTranslation();
   const isCompact = useIsCompactMode();
@@ -160,7 +177,8 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
 
     const hasHighlight = highlightedGroupNodeId != null;
     const hasSelection = isEdgeAnimationEnabled && selectedNodeId != null;
-    if (!hasHighlight && !hasSelection) return edges;
+    const hasSelectedEdge = isEdgeAnimationEnabled && edges.some((e) => e.selected);
+    if (!hasHighlight && !hasSelection && !hasSelectedEdge) return edges;
 
     return edges.map((edge) => {
       const isHighlightAnimated =
@@ -171,12 +189,12 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
             (highlightChildIds.has(edge.source) || highlightChildIds.has(edge.target))));
 
       const isSelectionAnimated =
-        hasSelection &&
-        (edge.selected ||
-          edge.source === selectedNodeId ||
-          edge.target === selectedNodeId ||
-          (selectionChildIds != null &&
-            (selectionChildIds.has(edge.source) || selectionChildIds.has(edge.target))));
+        (isEdgeAnimationEnabled && edge.selected) ||
+        (hasSelection &&
+          (edge.source === selectedNodeId ||
+            edge.target === selectedNodeId ||
+            (selectionChildIds != null &&
+              (selectionChildIds.has(edge.source) || selectionChildIds.has(edge.target)))));
 
       return { ...edge, animated: isHighlightAnimated || isSelectionAnimated };
     });
@@ -523,6 +541,18 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
             </Panel>
           )}
         </ReactFlow>
+        {onOpenSample && onDismissEmptyState && onLoadWorkflow && (
+          <StartMenu
+            isOpen={showEmptyState}
+            onOpenSample={onOpenSample}
+            onStartFromScratch={onDismissEmptyState}
+            onLoadWorkflow={onLoadWorkflow}
+            extensionVersion={extensionVersion}
+            recentWorkflows={recentWorkflows}
+            onLoadRecent={onLoadRecent}
+            onVersionClick={onVersionClick}
+          />
+        )}
       </div>
     </div>
   );

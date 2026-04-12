@@ -29,10 +29,12 @@ import { AntigravityMcpRefreshDialog } from './components/dialogs/AntigravityMcp
 import { ConfirmDialog } from './components/dialogs/ConfirmDialog';
 import { DiffPreviewDialog } from './components/dialogs/DiffPreviewDialog';
 import { RefinementChatPanel } from './components/dialogs/RefinementChatPanel';
+import { SampleWorkflowDialog } from './components/dialogs/SampleWorkflowDialog';
 import { SlackConnectionRequiredDialog } from './components/dialogs/SlackConnectionRequiredDialog';
 import { SlackManualTokenDialog } from './components/dialogs/SlackManualTokenDialog';
 import { SlackShareDialog } from './components/dialogs/SlackShareDialog';
 import { SubAgentFlowDialog } from './components/dialogs/SubAgentFlowDialog';
+import { WhatsNewDialog } from './components/dialogs/WhatsNewDialog';
 import { ErrorNotification } from './components/ErrorNotification';
 import { NodePalette } from './components/NodePalette';
 import { PropertyOverlay } from './components/PropertyOverlay';
@@ -47,7 +49,7 @@ import { vscode } from './main';
 import { deserializeWorkflow, serializeWorkflow } from './services/workflow-service';
 import { useCommentaryStore } from './stores/commentary-store';
 import { useRefinementStore } from './stores/refinement-store';
-import { getCanvasRevision, useWorkflowStore } from './stores/workflow-store';
+import { getCanvasRevision, hasUnsavedChanges, useWorkflowStore } from './stores/workflow-store';
 import type { RefinementChatState } from './types/refinement-chat-state';
 import { computeWorkflowDiff, type WorkflowDiffSummary } from './utils/workflow-diff';
 
@@ -65,6 +67,7 @@ const App: React.FC = () => {
     subAgentFlows,
     setCanvas,
     setWorkflowName,
+    setWorkflowDescription,
     setActiveWorkflow,
     updateActiveWorkflowMetadata,
     isPropertyOverlayOpen,
@@ -199,10 +202,18 @@ const App: React.FC = () => {
     string | undefined
   >(undefined);
   const [isMoreActionsOpen, setIsMoreActionsOpen] = useState(false);
+  const [isSampleDialogOpen, setIsSampleDialogOpen] = useState(false);
+  const [pendingLoadSampleId, setPendingLoadSampleId] = useState<string | null>(null);
+  const [showUnsavedConfirmForSample, setShowUnsavedConfirmForSample] = useState(false);
+  const pendingTourAfterSampleLoadRef = useRef(false);
   const [unreadReleaseCount, setUnreadReleaseCount] = useState(0);
+  const [extensionVersion, setExtensionVersion] = useState('');
+  const [recentWorkflows, setRecentWorkflows] = useState<Array<{ id: string; name: string }>>([]);
   const [showWhatsNewBadge, setShowWhatsNewBadge] = useState(true);
+  const [isWhatsNewFromStartMenu, setIsWhatsNewFromStartMenu] = useState(false);
   const [showMcpRefreshDialog, setShowMcpRefreshDialog] = useState(false);
   const [mcpRefreshSkillName, setMcpRefreshSkillName] = useState<string>('cc-workflow-ai-editor');
+  const [emptyStateDismissed, setEmptyStateDismissed] = useState(false);
 
   // Pending MCP apply state for diff preview
   const [pendingMcpApply, setPendingMcpApply] = useState<{
@@ -224,6 +235,28 @@ const App: React.FC = () => {
   } = useCollapsiblePanel();
   const isCompact = useIsCompactMode();
 
+  // Reset emptyStateDismissed when a workflow is loaded (so empty state reappears after reset)
+  const prevActiveWorkflowRef = useRef(activeWorkflow);
+  useEffect(() => {
+    if (prevActiveWorkflowRef.current !== null && activeWorkflow === null) {
+      setEmptyStateDismissed(false);
+    }
+    prevActiveWorkflowRef.current = activeWorkflow;
+  }, [activeWorkflow]);
+
+  // Empty state: show when canvas has only default Start/End nodes, no edges, no active workflow
+  const isCanvasEmpty =
+    nodes.length === 2 &&
+    edges.length === 0 &&
+    activeWorkflow === null &&
+    nodes.some((n) => n.id === 'start-node-default') &&
+    nodes.some((n) => n.id === 'end_node_default');
+  const showEmptyState = isCanvasEmpty && !emptyStateDismissed && !runTour;
+
+  const handleLoadWorkflowFromEmptyState = useCallback(() => {
+    vscode.postMessage({ type: 'OPEN_FILE_PICKER' });
+  }, []);
+
   const handleError = (errorData: ErrorPayload) => {
     setError(errorData);
   };
@@ -232,9 +265,9 @@ const App: React.FC = () => {
     setError(null);
   };
 
-  const handleTourFinish = () => {
+  const handleTourFinish = useCallback(() => {
     setRunTour(false);
-  };
+  }, []);
 
   const handleStartTour = useCallback(() => {
     setRunTour(true);
@@ -244,6 +277,16 @@ const App: React.FC = () => {
   const handleShareToSlack = () => {
     setIsSlackShareDialogOpen(true);
   };
+
+  const handleLoadSample = useCallback((sampleId: string) => {
+    if (hasUnsavedChanges()) {
+      setPendingLoadSampleId(sampleId);
+      setShowUnsavedConfirmForSample(true);
+    } else {
+      vscode.postMessage({ type: 'LOAD_SAMPLE_WORKFLOW', payload: { sampleId } });
+      setIsSampleDialogOpen(false);
+    }
+  }, []);
 
   const handleAcceptMcpApply = useCallback(() => {
     const pending = pendingMcpApplyRef.current;
@@ -333,10 +376,17 @@ const App: React.FC = () => {
         setMode('edit');
         const payload = message.payload as InitialStatePayload;
         if (payload.isFirstTimeUser) {
-          handleStartTour();
+          // Load sample workflow first, then start tour after it's loaded
+          pendingTourAfterSampleLoadRef.current = true;
+          vscode.postMessage({
+            type: 'LOAD_SAMPLE_WORKFLOW',
+            payload: { sampleId: 'github-issue-planning-sample' },
+          });
         }
         setUnreadReleaseCount(payload.unreadReleaseCount ?? 0);
         setShowWhatsNewBadge(payload.showWhatsNewBadge ?? true);
+        setExtensionVersion(payload.extensionVersion ?? '');
+        setRecentWorkflows(payload.recentWorkflows ?? []);
       } else if (message.type === 'IMPORT_WORKFLOW_FROM_SLACK') {
         // Handle import workflow request from Extension Host
         // Simply forward the message back to Extension Host to trigger the import process
@@ -389,6 +439,26 @@ const App: React.FC = () => {
       } else if (message.type === 'IMPORT_WORKFLOW_CANCELLED') {
         // Hide loading overlay when user cancels
         setIsLoadingImportedWorkflow(false);
+      } else if (message.type === 'SAMPLE_WORKFLOW_LOADED') {
+        const workflow = message.payload?.workflow;
+        if (workflow) {
+          const { nodes: loadedNodes, edges: loadedEdges } = deserializeWorkflow(workflow);
+          setCanvas(loadedNodes, loadedEdges);
+          setWorkflowName(workflow.name);
+          setWorkflowDescription(workflow.description || '');
+          setActiveWorkflow(workflow);
+        }
+        // Start tour after sample workflow is loaded (first-time user flow)
+        if (pendingTourAfterSampleLoadRef.current) {
+          pendingTourAfterSampleLoadRef.current = false;
+          handleStartTour();
+        }
+      } else if (message.type === 'ERROR') {
+        // If sample load failed during first-time user flow, still start the tour
+        if (pendingTourAfterSampleLoadRef.current) {
+          pendingTourAfterSampleLoadRef.current = false;
+          handleStartTour();
+        }
       } else if (message.type === 'PREPARE_WORKFLOW_LOAD') {
         // Show loading overlay while loading new workflow from preview
         setIsLoadingWorkflowFromPreview(true);
@@ -536,6 +606,7 @@ const App: React.FC = () => {
   }, [
     setCanvas,
     setWorkflowName,
+    setWorkflowDescription,
     setActiveWorkflow,
     activeWorkflow,
     nodes,
@@ -605,6 +676,7 @@ const App: React.FC = () => {
         onError={handleError}
         onStartTour={handleStartTour}
         onShareToSlack={handleShareToSlack}
+        onOpenSampleWorkflows={() => setIsSampleDialogOpen(true)}
         moreActionsOpen={isMoreActionsOpen}
         onMoreActionsOpenChange={setIsMoreActionsOpen}
         initialUnreadReleaseCount={unreadReleaseCount}
@@ -642,6 +714,19 @@ const App: React.FC = () => {
           <WorkflowEditor
             isNodePaletteCollapsed={isNodePaletteCollapsed}
             onExpandNodePalette={expandNodePalette}
+            showEmptyState={showEmptyState}
+            onOpenSample={() => setIsSampleDialogOpen(true)}
+            onDismissEmptyState={() => setEmptyStateDismissed(true)}
+            onLoadWorkflow={handleLoadWorkflowFromEmptyState}
+            extensionVersion={extensionVersion}
+            recentWorkflows={recentWorkflows}
+            onLoadRecent={(id) => {
+              vscode.postMessage({
+                type: 'LOAD_WORKFLOW',
+                payload: { workflowId: id },
+              });
+            }}
+            onVersionClick={() => setIsWhatsNewFromStartMenu(true)}
           />
           {/* Processing overlay for canvas area only (with message centered in canvas) */}
           <ProcessingOverlay isVisible={isProcessing} message={t('refinement.processingOverlay')} />
@@ -690,6 +775,45 @@ const App: React.FC = () => {
 
       {/* Interactive Tour */}
       <Tour key={tourKey} run={runTour} onFinish={handleTourFinish} />
+
+      {/* Sample Workflow Dialog */}
+      <SampleWorkflowDialog
+        isOpen={isSampleDialogOpen}
+        onClose={() => setIsSampleDialogOpen(false)}
+        onLoadSample={handleLoadSample}
+      />
+
+      {/* What's New Dialog triggered from StartMenu version click */}
+      <WhatsNewDialog
+        isOpen={isWhatsNewFromStartMenu}
+        onClose={() => setIsWhatsNewFromStartMenu(false)}
+        showBadge={showWhatsNewBadge}
+        onShowBadgeChange={setShowWhatsNewBadge}
+      />
+
+      {/* Unsaved changes confirmation before loading sample */}
+      <ConfirmDialog
+        isOpen={showUnsavedConfirmForSample}
+        title={t('dialog.loadWorkflow.title')}
+        message={t('dialog.loadWorkflow.message')}
+        confirmLabel={t('dialog.loadWorkflow.confirm')}
+        cancelLabel={t('dialog.loadWorkflow.cancel')}
+        onConfirm={() => {
+          setShowUnsavedConfirmForSample(false);
+          if (pendingLoadSampleId) {
+            vscode.postMessage({
+              type: 'LOAD_SAMPLE_WORKFLOW',
+              payload: { sampleId: pendingLoadSampleId },
+            });
+            setPendingLoadSampleId(null);
+            setIsSampleDialogOpen(false);
+          }
+        }}
+        onCancel={() => {
+          setShowUnsavedConfirmForSample(false);
+          setPendingLoadSampleId(null);
+        }}
+      />
 
       {/* Delete Confirmation Dialog for Delete key */}
       <ConfirmDialog

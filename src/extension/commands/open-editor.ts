@@ -6,6 +6,7 @@
  */
 
 import * as crypto from 'node:crypto';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type {
   AiEditingProvider,
@@ -13,6 +14,7 @@ import type {
   GetCurrentWorkflowResponsePayload,
   LaunchAiAgentPayload,
   McpConfigTarget,
+  RecentWorkflowItem,
   RunAiEditingSkillPayload,
   SetReviewBeforeApplyPayload,
   StartMcpServerPayload,
@@ -29,8 +31,8 @@ import { cancelGeneration } from '../services/claude-code-service';
 import { CommentarySessionManager } from '../services/commentary-session-manager';
 import { FileService } from '../services/file-service';
 import {
+  checkPortMismatch,
   getConfigTargetsForProvider,
-  removeAllAgentConfigs,
   writeAllAgentConfigs,
 } from '../services/mcp-server-config-writer';
 import { SlackApiService } from '../services/slack-api-service';
@@ -69,6 +71,7 @@ import {
 import { handleExportForCursor, handleRunForCursor } from './cursor-handlers';
 import { handleExportWorkflow, handleExportWorkflowForExecution } from './export-workflow';
 import { handleExportForGeminiCli, handleRunForGeminiCli } from './gemini-handlers';
+import { listSampleWorkflows, loadSampleWorkflow } from './load-sample-workflow';
 import { loadWorkflow } from './load-workflow';
 import { loadWorkflowList } from './load-workflow-list';
 import {
@@ -124,6 +127,48 @@ export interface ImportParameters {
   workflowId: string;
   /** Workspace name for display in error dialogs (decoded from Base64) */
   workspaceName?: string;
+}
+
+const MAX_RECENT_WORKFLOWS = 10;
+
+async function addRecentWorkflow(
+  context: vscode.ExtensionContext,
+  workflowId: string
+): Promise<void> {
+  const recent = context.globalState.get<string[]>('recentWorkflows', []);
+  const updated = [workflowId, ...recent.filter((id) => id !== workflowId)].slice(
+    0,
+    MAX_RECENT_WORKFLOWS
+  );
+  await context.globalState.update('recentWorkflows', updated);
+}
+
+async function loadRecentWorkflows(
+  context: vscode.ExtensionContext,
+  fileService: FileService
+): Promise<RecentWorkflowItem[]> {
+  const recentIds = context.globalState.get<string[]>('recentWorkflows', []);
+  const items: RecentWorkflowItem[] = [];
+  const validIds: string[] = [];
+
+  for (const id of recentIds) {
+    try {
+      const filePath = fileService.getWorkflowFilePath(id);
+      const content = await fileService.readFile(filePath);
+      const workflow = JSON.parse(content);
+      items.push({ id, name: workflow.name || id });
+      validIds.push(id);
+    } catch {
+      // File no longer exists - skip
+    }
+  }
+
+  // Clean up stale entries
+  if (validIds.length !== recentIds.length) {
+    await context.globalState.update('recentWorkflows', validIds);
+  }
+
+  return items;
 }
 
 /**
@@ -239,6 +284,11 @@ export function registerOpenEditorCommand(
           }
           const webview = currentPanel.webview;
 
+          // Helper: get configured MCP port from VSCode settings
+          function getConfiguredMcpPort(): number {
+            return vscode.workspace.getConfiguration('cc-wf-studio').get<number>('mcp.port', 6282);
+          }
+
           // Helper: ensure MCP server is running and config written for Run operations
           async function ensureMcpServerForRun(
             provider: AiEditingProvider,
@@ -252,7 +302,7 @@ export function registerOpenEditorCommand(
             const previousPort = mcpManager.getPort();
             let serverPort = previousPort;
             if (!mcpManager.isRunning()) {
-              serverPort = await mcpManager.start(context.extensionPath);
+              serverPort = await mcpManager.start(context.extensionPath, getConfiguredMcpPort());
             }
             const serverUrl = `http://127.0.0.1:${serverPort}/mcp`;
 
@@ -271,6 +321,31 @@ export function registerOpenEditorCommand(
                 const written = await writeAllAgentConfigs(newTargets, serverUrl, workspacePath);
                 mcpManager.addWrittenConfigs(written);
                 configWritten = written.length > 0;
+              }
+
+              // Check for port mismatch in config files
+              if (serverPort !== null) {
+                const primaryTarget = requiredTargets[0];
+                const { mismatch, configPort } = await checkPortMismatch(
+                  primaryTarget,
+                  serverPort,
+                  workspacePath
+                );
+                if (mismatch) {
+                  vscode.window.showWarningMessage(
+                    `MCP port mismatch: server is running on port ${serverPort}, but ${primaryTarget} config has port ${configPort}. Rewriting config.`
+                  );
+                  for (const t of requiredTargets) {
+                    mcpManager.getWrittenConfigs().delete(t);
+                  }
+                  const rewritten = await writeAllAgentConfigs(
+                    requiredTargets,
+                    serverUrl,
+                    workspacePath
+                  );
+                  mcpManager.addWrittenConfigs(rewritten);
+                  configWritten = true;
+                }
               }
             }
 
@@ -317,12 +392,18 @@ export function registerOpenEditorCommand(
               // Webview is fully initialized and ready to receive messages
               // This is more reliable than setTimeout (fixes Issue #396)
               const showWhatsNewBadge = context.globalState.get<boolean>('showWhatsNewBadge', true);
+              const extensionPkg = require(
+                vscode.Uri.joinPath(vscode.Uri.file(context.extensionPath), 'package.json').fsPath
+              );
+              const recentWorkflows = await loadRecentWorkflows(context, fileService);
               webview.postMessage({
                 type: 'INITIAL_STATE',
                 payload: {
                   isFirstTimeUser,
                   unreadReleaseCount: showWhatsNewBadge ? unreadReleaseCount : 0,
                   showWhatsNewBadge,
+                  extensionVersion: extensionPkg.version ?? '',
+                  recentWorkflows,
                 },
               });
 
@@ -351,6 +432,8 @@ export function registerOpenEditorCommand(
                   message.payload.workflow,
                   message.requestId
                 );
+                // Record in recent workflows
+                await addRecentWorkflow(context, message.payload.workflow.name);
                 // Update MCP server workflow cache
                 const saveManager = getMcpServerManager();
                 if (saveManager) {
@@ -926,6 +1009,8 @@ export function registerOpenEditorCommand(
                   message.payload.workflowId,
                   message.requestId
                 );
+                // Record in recent workflows
+                await addRecentWorkflow(context, message.payload.workflowId);
               } else {
                 webview.postMessage({
                   type: 'ERROR',
@@ -933,6 +1018,30 @@ export function registerOpenEditorCommand(
                   payload: {
                     code: 'VALIDATION_ERROR',
                     message: 'Workflow ID is required',
+                  },
+                });
+              }
+              break;
+
+            case 'LIST_SAMPLE_WORKFLOWS':
+              await listSampleWorkflows(context.extensionPath, webview, message.requestId);
+              break;
+
+            case 'LOAD_SAMPLE_WORKFLOW':
+              if (message.payload?.sampleId) {
+                await loadSampleWorkflow(
+                  context.extensionPath,
+                  webview,
+                  message.payload.sampleId,
+                  message.requestId
+                );
+              } else {
+                webview.postMessage({
+                  type: 'ERROR',
+                  requestId: message.requestId,
+                  payload: {
+                    code: 'VALIDATION_ERROR',
+                    message: 'Sample workflow ID is required',
                   },
                 });
               }
@@ -997,6 +1106,11 @@ export function registerOpenEditorCommand(
                   requestId: message.requestId,
                   payload: { workflow },
                 });
+
+                // Record in recent workflows (use filename as canonical ID
+                // to match getWorkflowFilePath resolution)
+                const workflowId = path.basename(filePath, '.json');
+                await addRecentWorkflow(context, workflowId);
 
                 console.log(`Workflow loaded from file picker: ${filePath}`);
               } catch (error) {
@@ -1575,7 +1689,10 @@ export function registerOpenEditorCommand(
                   'copilot',
                 ];
 
-                const port = await startManager.start(context.extensionPath);
+                const port = await startManager.start(
+                  context.extensionPath,
+                  getConfiguredMcpPort()
+                );
                 const serverUrl = `http://127.0.0.1:${port}/mcp`;
 
                 // Write config to selected targets
@@ -1602,9 +1719,9 @@ export function registerOpenEditorCommand(
 
                 log('INFO', 'MCP Server started via UI', { port, configsWritten });
               } catch (error) {
-                log('ERROR', 'Failed to start MCP server', {
-                  error: error instanceof Error ? error.message : String(error),
-                });
+                const errMsg = error instanceof Error ? error.message : String(error);
+                log('ERROR', 'Failed to start MCP server', { error: errMsg });
+                vscode.window.showErrorMessage(errMsg);
                 webview.postMessage({
                   type: 'MCP_SERVER_STATUS',
                   requestId: message.requestId,
@@ -1637,12 +1754,6 @@ export function registerOpenEditorCommand(
 
               try {
                 await stopManager.stop();
-
-                // Remove configs (best-effort)
-                const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-                if (workspacePath) {
-                  await removeAllAgentConfigs(workspacePath);
-                }
 
                 webview.postMessage({
                   type: 'MCP_SERVER_STATUS',
@@ -1757,7 +1868,10 @@ export function registerOpenEditorCommand(
                 // 1. Start server if not running
                 let serverPort = launchManager.getPort();
                 if (!launchManager.isRunning()) {
-                  serverPort = await launchManager.start(context.extensionPath);
+                  serverPort = await launchManager.start(
+                    context.extensionPath,
+                    getConfiguredMcpPort()
+                  );
                 }
                 const serverUrl = `http://127.0.0.1:${serverPort}/mcp`;
 
@@ -1771,6 +1885,30 @@ export function registerOpenEditorCommand(
                 if (newTargets.length > 0) {
                   const written = await writeAllAgentConfigs(newTargets, serverUrl, workspacePath);
                   launchManager.addWrittenConfigs(written);
+                }
+
+                // Check for port mismatch in config files
+                if (serverPort !== null) {
+                  const primaryTarget = requiredTargets[0];
+                  const { mismatch, configPort } = await checkPortMismatch(
+                    primaryTarget,
+                    serverPort,
+                    workspacePath
+                  );
+                  if (mismatch) {
+                    vscode.window.showWarningMessage(
+                      `MCP port mismatch: server is running on port ${serverPort}, but ${primaryTarget} config has port ${configPort}. Rewriting config.`
+                    );
+                    for (const t of requiredTargets) {
+                      launchManager.getWrittenConfigs().delete(t);
+                    }
+                    const rewritten = await writeAllAgentConfigs(
+                      requiredTargets,
+                      serverUrl,
+                      workspacePath
+                    );
+                    launchManager.addWrittenConfigs(rewritten);
+                  }
                 }
 
                 // 3. Send MCP_SERVER_STATUS update
