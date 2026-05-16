@@ -134,24 +134,39 @@ export async function startPreviewServer(
       shutdownTimer = null;
       if (shuttingDown || sseClients.size > 0) return;
       shuttingDown = true;
-      // Best-effort teardown: rip down any lingering keep-alive sockets first
-      // (browsers and curl both leave HTTP/1.1 connections idle for many
-      // seconds otherwise, which would block httpServer.close from resolving
-      // and the caller's process.exit from happening promptly), then fire the
-      // callback without awaiting close — the CLI hands us a process.exit, so
-      // any remaining handles are torn down by the runtime.
-      try {
-        httpServer.closeAllConnections?.();
-      } catch {
-        // ignore
-      }
+      // Auto-shutdown happens because every viewer has *already* disconnected,
+      // so there are no SSE clients to notify; closeInternal still fires its
+      // broadcast for any stragglers and then drains keep-alive sockets so
+      // process.exit in onAutoShutdown can run promptly.
       void closeInternal();
       options.onAutoShutdown?.();
     }, autoShutdownAfterMs);
   };
 
+  /**
+   * Push a single `server-shutdown` event to every connected SSE client. The
+   * browser entry uses this to (a) attempt window.close() and (b) drop an
+   * overlay onto the page when window.close is blocked, so the tab no longer
+   * pretends the server is still serving it.
+   */
+  const broadcastShutdownEvent = (): void => {
+    const message = 'event: server-shutdown\ndata: {}\n\n';
+    for (const client of sseClients) {
+      try {
+        client.write(message);
+      } catch {
+        // best-effort; closed sockets get cleaned up on their own.
+      }
+    }
+  };
+
   const closeInternal = async (): Promise<void> => {
     cancelShutdownTimer();
+    broadcastShutdownEvent();
+    // Give the browser a tick to actually receive the SSE frame before we rip
+    // its socket out from under it. Without this the network stack will
+    // sometimes drop the in-flight bytes when we call closeAllConnections().
+    await new Promise<void>((resolve) => setTimeout(resolve, 50));
     for (const client of sseClients) {
       try {
         client.end();
