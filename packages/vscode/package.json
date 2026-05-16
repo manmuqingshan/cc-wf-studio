@@ -119,7 +119,7 @@
     "format": "biome format --write .",
     "check": "biome check --write .",
     "test": "pnpm --filter cc-wf-studio-webview run test",
-    "package": "vsce package"
+    "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.4",
@@ -137,6 +137,7 @@
     "fflate": "^0.8.2",
     "marked": "^15.0.12",
     "nano-spawn": "^2.0.0",
-    "smol-toml": "^1.6.0"
+    "smol-toml": "^1.6.0",
+    "zod": "^4.4.3"
   }
 }
