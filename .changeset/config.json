@@ -7,7 +7,7 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [],
+  "ignore": ["cc-wf-studio", "cc-wf-studio-webview"],
   "privatePackages": {
     "version": true,
     "tag": true
