@@ -113,7 +113,12 @@ function isWithinDirectory(parent: string, candidate: string): boolean {
 export async function startPreviewServer(
   options: PreviewServerOptions
 ): Promise<PreviewServerHandle> {
+  // Bind on the explicit IPv4 loopback to keep behaviour predictable across
+  // OS resolver quirks (some IPv6-enabled hosts resolve `localhost` to `::1`,
+  // which would silently leave us serving on a different stack). When the
+  // caller supplies an explicit --host we honour it for both bind and display.
   const host = options.host ?? '127.0.0.1';
+  const displayHost = options.host ?? 'localhost';
   const sessionId = randomUUID();
   let bootstrap: PreviewBootstrap = options.bootstrap;
   const sseClients = new Set<ServerResponse>();
@@ -294,10 +299,10 @@ export async function startPreviewServer(
   const port = address.port;
 
   return {
-    host,
+    host: displayHost,
     port,
     sessionId,
-    url: `http://${host}:${port}/${sessionId}/`,
+    url: `http://${displayHost}:${port}/${sessionId}/`,
     setBootstrap(next) {
       bootstrap = next;
     },

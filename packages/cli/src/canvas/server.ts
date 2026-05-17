@@ -168,7 +168,12 @@ async function serveStatic(
 export async function startCanvasServer(
   options: CanvasServerOptions
 ): Promise<CanvasServerHandle> {
+  // Bind on the explicit IPv4 loopback to keep behaviour predictable across
+  // OS resolver quirks (some IPv6-enabled hosts resolve `localhost` to `::1`,
+  // which would silently leave us serving on a different stack). When the
+  // caller supplies an explicit --host we honour it for both bind and display.
   const host = options.host ?? '127.0.0.1';
+  const displayHost = options.host ?? 'localhost';
   const sessionId = randomUUID();
   const bootstrapConfig: Record<string, unknown> = {
     ...(options.bootstrapConfig ?? {}),
@@ -246,13 +251,13 @@ export async function startCanvasServer(
     throw new Error('Canvas server did not return an inet address.');
   }
   const port = address.port;
-  bootstrapConfig.wsUrl = `ws://${host}:${port}/${sessionId}/ws`;
+  bootstrapConfig.wsUrl = `ws://${displayHost}:${port}/${sessionId}/ws`;
 
   return {
-    host,
+    host: displayHost,
     port,
     sessionId,
-    url: `http://${host}:${port}/${sessionId}/`,
+    url: `http://${displayHost}:${port}/${sessionId}/`,
     async close() {
       for (const socket of openSockets) {
         socket.close();
