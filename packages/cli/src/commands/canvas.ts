@@ -30,7 +30,6 @@ import { WorkflowLoadError, loadWorkflowFromFile } from '../utils/load-workflow.
 interface CanvasOptions {
   port?: string;
   host?: string;
-  noOpen?: boolean;
 }
 
 /**
@@ -98,7 +97,6 @@ export function registerCanvasCommand(program: Command): void {
     .argument('<file>', 'Path to a workflow JSON file.')
     .option('--port <number>', 'Preferred port (default: ephemeral / 0).')
     .option('--host <address>', 'Bind host. Default 127.0.0.1; do not change for public networks.')
-    .option('--no-open', "Don't try to launch a browser automatically.")
     .action(async (file: string, options: CanvasOptions) => {
       try {
         // Validate the file is parseable JSON up-front so the user gets a clear
@@ -132,9 +130,7 @@ export function registerCanvasCommand(program: Command): void {
         ].join('\n');
         process.stdout.write(`${banner}\n`);
 
-        if (!options.noOpen) {
-          openInBrowser(server.url);
-        }
+        openInBrowser(server.url);
 
         const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
           process.stdout.write(`\nReceived ${signal}, shutting down ccwf canvas…\n`);

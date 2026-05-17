@@ -24,7 +24,6 @@ import { WorkflowLoadError, loadWorkflowFromFile } from '../utils/load-workflow.
 interface PreviewOptions {
   port?: string;
   host?: string;
-  noOpen?: boolean;
   watch?: boolean;
   keepAlive?: boolean;
 }
@@ -93,7 +92,6 @@ export function registerPreviewCommand(program: Command): void {
     .argument('<file>', 'Path to a workflow JSON file.')
     .option('--port <number>', 'Preferred port (default: ephemeral / 0).')
     .option('--host <address>', 'Bind host. Default 127.0.0.1; do not change for public networks.')
-    .option('--no-open', "Don't try to launch a browser automatically.")
     .option('--watch', 'Reload the browser whenever <file> changes on disk.', false)
     .option(
       '--keep-alive',
@@ -169,9 +167,7 @@ export function registerPreviewCommand(program: Command): void {
         ].join('\n');
         process.stdout.write(`${banner}\n`);
 
-        if (!options.noOpen) {
-          openInBrowser(server.url);
-        }
+        openInBrowser(server.url);
 
         const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
           process.stdout.write(`\nReceived ${signal}, shutting down ccwf preview…\n`);

@@ -105,11 +105,10 @@ ccwf run ./my-workflow.json --agent cursor  # write only (cursor launch not yet 
 ccwf preview ./my-workflow.json                 # boot, print URL, open browser
 ccwf preview ./my-workflow.json --watch         # also reload on file changes
 ccwf preview ./my-workflow.json --port 51234    # pin to a port
-ccwf preview ./my-workflow.json --no-open       # boot only (you click the URL)
 ccwf preview ./my-workflow.json --keep-alive    # don't auto-shutdown when the tab closes
 ```
 
-By default the server auto-shuts down **30 seconds after the last viewer tab closes**, so you don't leak listeners after a one-off "open and read" session. The countdown only starts once at least one browser has actually connected — `--no-open` runs that nobody opens are kept alive indefinitely. Pass `--keep-alive` to keep the server running until you hit Ctrl+C (useful for multiple tabs, LAN sharing, or reconnecting later).
+By default the server auto-shuts down **30 seconds after the last viewer tab closes**, so you don't leak listeners after a one-off "open and read" session. The countdown only starts once at least one browser has actually connected — a run where the browser fails to launch and the user never opens the URL stays alive indefinitely. Pass `--keep-alive` to keep the server running until you hit Ctrl+C (useful for multiple tabs, LAN sharing, or reconnecting later).
 
 Read-only viewer powered by the `WorkflowOverview` component the VSCode extension already ships:
 - **Left**: Mermaid flow rendered from the workflow nodes / connections.
@@ -124,7 +123,6 @@ No editor, no Save button, no extension RPCs — the browser fetches a single st
 ```sh
 ccwf canvas ./my-workflow.json                # boot, print URL, open browser
 ccwf canvas ./my-workflow.json --port 51234   # pin to a port
-ccwf canvas ./my-workflow.json --no-open      # boot only (you click the URL)
 ```
 
 `ccwf canvas` brings up the **full editable** cc-wf-studio canvas in a browser. It serves the bundled webview UI from a local HTTP + WebSocket server; saves from the canvas write back to the same workflow file. Other VSCode-only features (Slack share, Claude API upload, MCP server management, agent-specific export buttons, …) intentionally return a `CANVAS_UNSUPPORTED` error so the UI surfaces the limitation rather than hanging.

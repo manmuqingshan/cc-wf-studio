@@ -45,7 +45,7 @@ export interface PreviewServerOptions {
   port?: number;
   /**
    * Auto-shutdown after every SSE client disconnects, in ms. The timer starts
-   * once at least one client has connected (so `--no-open` runs that nobody
+   * once at least one client has connected (so headless runs that nobody
    * ever opens don't shut themselves down). Set to `0` or omit to disable.
    */
   autoShutdownAfterMs?: number;
